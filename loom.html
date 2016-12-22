@@ -10,7 +10,12 @@
 			return _ft_[f]
 		end
 		local function annottraces(txt)
-			for i = 1, #traces do
+			txt = txt:gsub('%(exit (%d+)/(%d+)%)', function(a,b)
+				a, b = tonumber(a), tonumber(b)
+				return ('(exit %d/%d [n=%d])'):format(a,b, traces[a].exits[b] or 0)
+			end)
+			txt = __e__(txt)
+			for i, tr in ipairs(traces) do
 				local ref = ('Trace #%d'):format(i)
 				local dst = ('<span class="tr%03d">%%0</span>'):format(i)
 				txt = txt:gsub(ref, dst)
@@ -98,7 +103,7 @@
 					{% end %}
 				</table></td>
 				<td class="code ir">{{tr.ir}}</td>
-				<td class="code mcode">{{=annottraces(__e__(tr.mcode))}}</td>
+				<td class="code mcode">{{=annottraces(tr.mcode)}}</td>
 			</tr>
 		</table>
 	{% end %}

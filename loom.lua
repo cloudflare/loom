@@ -696,6 +696,7 @@ do
 				record = 0,
 				texit = 0,
 			},
+			exits = {},
 		}
 		return traces_data[tr]
 	end
@@ -754,6 +755,7 @@ do
 		texit = function (tr, ex, ngpr, nfpr, ...)
 			local t = gettrace(tr)
 			t.n.texit = t.n.texit + 1
+			t.exits[ex] = (t.exits[ex] or 0) + 1
 			t.evt[#t.evt+1] = {'exit', ex, ngpr, nfpr, ...}
 		end,
 	}
