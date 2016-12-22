@@ -20,7 +20,7 @@ return function (tpl, ...)
 	local src = (
 		'local __e__, %s = ... ' ..
 		'local __o__ = {} ' ..
-		'local function __p__(x) __o__[#__o__+1] = x end ' ..
+		'local function __p__(x) __o__[#__o__+1] = tostring(x or "") end ' ..
 		'local function __fp__(f, ...) __p__(f:format(...)) end '..
 		'local function __ep__(x) __p__(__e__(x)) end ' ..
 		'__p__[=[%s]=] ' ..

@@ -19,8 +19,11 @@
 				white-space: pre;
 				tab-size: 4;
 			}
+			.codespan {
+				width: 100%;
+			}
 			.bordertop td {
-				border-top: thin black solid;
+				border-top: thin lightgray solid;
 			}
 			.phantom {
 				color: #ccc	;
@@ -28,12 +31,8 @@
 			.white {
 				background-color: white;
 			}
-			.popup {
-/* 				display: none; */
-/* 				position: absolute; */
-			}
 			{% for i = 1, #funcs do %}{{:'.fn%03d', i}} {
-				background-color: hsla({{math.random(360)}}, 80%, 85%, 1);
+				background-color: hsla({{math.random(360)}}, 100%, 90%, 1);
 			}
 			{% end %}
 
@@ -42,52 +41,12 @@
 			}
 			{% end %}
 		</style>
-		<script type="text/javascript">
-			"use strict";
-// 			{
-// 				function bitRev (n) {
-// 					let i = 0, reversed = 0, last;
-// 					while (i < 15) {
-// 						last = n & 1;
-// 						n >>= 1;
-// 						reversed += last;
-// 						reversed <<= 1;
-// 						i++;
-// 					}
-// 					return reversed;
-// 				}
-// 				let nxtcol = 0;
-// 				var col = function () {
-// 					return 'hsla('+bitRev(++nxtcol)*360/65536+', 80%, 75%, 1)';
-// 				}
-// 			}
-
-			$(function() {
-// 				var body = $('body');
-// 				var tracenames = ['tr001', 'tr002'];
-// 				for (let tn of tracenames) {
-// 					let rule = '<style>.'+tn+' { background-color: '+col()+'; }</style>';
-// 					$(rule).appendTo('head');
-//
-// // 					$('.'+tn).mouseenter(function (e){
-// // 						let target = $(e.target);
-// // 						let popup = $('#'+tn);
-// // 						let pos = target.offset();
-// // 						pos.top += target.height()*1.5;
-// // 						pos.left += target.width()/2 - popup.width()/4;
-// // 						popup.show().offset(pos);
-// // 					}).mouseleave(function (e){
-// // 						$('#'+tn).hide();
-// // 					})
-// 				}
-			});
-		</script>
 	</head>
 	<body>
 	{% for filename, filedata in pairs(annotated) do
 		local lastline
 		%}
-		<table class="code">
+		<table class="code" cellpadding="0" cellspacing="0">
 			<tr>
 				<th colspan="2">{{ filename }}</th>
 				<th colspan="3">Bytecode</th>
@@ -99,7 +58,7 @@
 			<tr {{= utils.class{bordertop=notsame and l.bc ~= ''} }}>
 				<td {{= utils.class{phantom=l.back} }}>{{ notsame and l.i or '' }}</td>
 				<td {{= utils.class{phantom=l.back} }}>{{ notsame and l.src or '' }}</td>
-				<td {{= utils.class{[funclabel(l.func)] = l.bc ~= ''} }}>{{ l.bc }}</td>
+				<td {{= utils.class{[funclabel(l.func)] = l.bc ~= ''} }} f="{{=l.func}}-{{=type(l.func)}}">{{ l.bc }}</td>
 				<td>{% for i, tr in ipairs(l.tr) do %} <span
 						id="{{:'tr%03d_%03d', tr[1], tr[2]}}"
 						class="{{:'tr%03d', tr[1]}}"
@@ -121,7 +80,14 @@
 				<th>mcode</th>
 			</tr>
 			<tr class="white" valign="top">
-				<td class="code bc">{{utils.tracerecord(tr)}}</td>
+				<td class="code bc"><table cellpadding="0" cellspacing="0">
+					{% for j, rec in ipairs(tr.rec) do local f, pc, l = unpack(rec) %}
+					<tr>
+						<td class="{{:'tr%03d', i}}">{{i}}/{{j}}</td>
+						<td class="{{funclabel(f)}}">{{l}}</td>
+					</tr>
+					{% end %}
+				</table></td>
 				<td class="code ir">{{tr.ir}}</td>
 				<td class="code mcode">{{tr.mcode}}</td>
 			</tr>

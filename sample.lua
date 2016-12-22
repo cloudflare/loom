@@ -42,7 +42,9 @@ function Sm.pointadds()
 	}
 	point.__index = point
 	local a, b = point:new(1.5, 2.5), point:new(3.25, 4.75)
-	for i=1,100000000 do a = (a + b) + b end
+	for i=1,100000000 do
+		a = (a + b) + b
+	end
 	print(a.x, a.y)
 end
 

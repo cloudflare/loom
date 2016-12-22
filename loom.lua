@@ -802,7 +802,7 @@ local function annotated(funcs, traces)
 	local srcs = {}
 	local o, lastline = {}, 0
 	for i, fi in ipairs(starts) do
-		if fi.source then
+		if fi.source and type(fi.func)=='function' then
 			local srcname = fi.source:gsub('^@', '')
 			srcs[srcname] = srcs[srcname] or srclines(srcname)
 			o[srcname] = o[srcname] or {}
