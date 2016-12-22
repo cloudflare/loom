@@ -9,6 +9,14 @@
 			end
 			return _ft_[f]
 		end
+		local function annottraces(txt)
+			for i = 1, #traces do
+				local ref = ('Trace #%d'):format(i)
+				local dst = ('<span class="tr%03d">%%0</span>'):format(i)
+				txt = txt:gsub(ref, dst)
+			end
+			return txt
+		end
 		local annotated = utils.annotated(funcs, traces)
 	%}
 	<head>
@@ -70,6 +78,7 @@
 	{% end %}
 
 	{% for i, tr in ipairs(traces) do %}
+		<br/>
 		<table class="popup trace {{:'tr%03d', i}}" id="{{:'tr%03d', i}}" cellpadding="4">
 			<tr>
 				<th colspan="3">Trace #{{i}}: {{tr.tracelabel}}</th>
@@ -89,7 +98,7 @@
 					{% end %}
 				</table></td>
 				<td class="code ir">{{tr.ir}}</td>
-				<td class="code mcode">{{tr.mcode}}</td>
+				<td class="code mcode">{{=annottraces(__e__(tr.mcode))}}</td>
 			</tr>
 		</table>
 	{% end %}
