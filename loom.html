@@ -1,6 +1,15 @@
 <!DOCTYPE html>
 <html lang="en">
 	{%
+		local function class(t)
+			o = {}
+			for k, v in pairs(t) do
+				if v then o[#o+1] = k end
+			end
+			if #o == 0 then return '' end
+			return 'class="'..table.concat(o, ' ')..'"'
+		end
+
 		local _ft_, _fndx_ = {}, 0
 		local function funclabel(f)
 			if _ft_[f] == nil then
@@ -9,6 +18,7 @@
 			end
 			return _ft_[f]
 		end
+
 		local function annottraces(txt)
 			txt = txt:gsub('%(exit (%d+)/(%d+)%)', function(a,b)
 				a, b = tonumber(a), tonumber(b)
@@ -22,6 +32,7 @@
 			end
 			return txt
 		end
+
 		local annotated = utils.annotated(funcs, traces)
 	%}
 	<head>
@@ -39,7 +50,7 @@
 				border-top: thin lightgray solid;
 			}
 			.phantom {
-				color: #ccc	;
+				color: #ccc;
 			}
 			.white {
 				background-color: white;
@@ -68,10 +79,10 @@
 				local notsame = l.i ~= lastline
 				lastline = l.i
 				%}
-			<tr {{= utils.class{bordertop=notsame and l.bc ~= ''} }}>
-				<td {{= utils.class{phantom=l.back} }}>{{ notsame and l.i or '' }}</td>
-				<td {{= utils.class{phantom=l.back} }}>{{ notsame and l.src or '' }}</td>
-				<td {{= utils.class{[funclabel(l.func)] = l.bc ~= ''} }} f="{{=l.func}}-{{=type(l.func)}}">{{ l.bc }}</td>
+			<tr {{= class{bordertop=notsame and l.bc ~= ''} }}>
+				<td {{= class{phantom=l.back} }}>{{ notsame and l.i or '' }}</td>
+				<td {{= class{phantom=l.back} }}>{{ notsame and l.src or '' }}</td>
+				<td {{= class{[funclabel(l.func)] = l.bc ~= ''} }} f="{{=l.func}}-{{=type(l.func)}}">{{ l.bc }}</td>
 				<td>{% for i, tr in ipairs(l.tr) do %} <span
 						id="{{:'tr%03d_%03d', tr[1], tr[2]}}"
 						class="{{:'tr%03d', tr[1]}}"
@@ -98,7 +109,7 @@
 					{% for j, rec in ipairs(tr.rec) do local f, pc, l = unpack(rec) %}
 					<tr>
 						<td class="{{:'tr%03d', i}}">{{i}}/{{j}}</td>
-						<td class="{{funclabel(f)}}">{{l}}</td>
+						<td class="{{funclabel(f)}}"> {{l}}</td>
 					</tr>
 					{% end %}
 				</table></td>

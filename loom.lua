@@ -633,8 +633,7 @@ end
 
 ----
 
-local rectrace
-
+local loomstart, loomstop
 do
 	local collecting = {[0]=0}
 	local function append(v)
@@ -760,12 +759,13 @@ do
 		end,
 	}
 
-	function rectrace(f, traces, funcs)
-		traces_data = traces or {}
-		seen_funcs = funcs or {}
+	function loomstart()
+		traces_data, seen_funcs = {}, {}
 		collecting = {[0]=0}
 		do_attachs()
-		f()
+	end
+
+	function loomstop()
 		do_detachs()
 		for _, v in ipairs(collecting) do
 			prevexp_t[v[1]](unpack(v, 2, table.maxn(v)))
@@ -867,115 +867,31 @@ local function tracerecord(tr)
 	end
 	return table.concat(o, '\n')
 end
-
-local function class(t)
-	o = {}
-	for k, v in pairs(t) do
-		if v then o[#o+1] = k end
-	end
-	if #o == 0 then return '' end
-	return 'class="'..table.concat(o, ' ')..'"'
-end
 --------------------------------------
 
+local defer
+do
+	local tmpl = 'loom.html'
 
-local module, func, tmpl = unpack(arg)
-if not module then
-	print [[
-Usage: luajit bc.lua <module> <funcname>
-]]
-	os.exit()
-end
-
-modfunc = assert(loadfile(package.searchpath(module, package.path)))
-
-if func then
-	func = assert(require(module)[func], "function not found")
-else
-	func = modfunc
-end
-
-if tmpl then
-	tmpl = assert(assert(io.open(tmpl)):read('*a'))
-	tmpl = require ('template')(tmpl, 'utils', 'traces', 'funcs')
-	print (tmpl({
-		srclines = srclines,
-		annotated = annotated,
-		sortedpairs = sortedpairs,
-		class = class,
-		tracerecord = tracerecord,
-	}, rectrace(func)))
-	return
-end
-
--- print ('func: ', func)
--- print (bc_dump(func))
-
--- print ("module bytecode:")
--- local func_bytecode = func_bc(modfunc)
--- for fn, fi in pairs(func_bytecode) do
--- 	print ("function: ", fn)
--- 	print (("function %q: %s:%d-%d"):format(
--- 		fn, fi.source, fi.currentline, fi.lastlinedefined))
--- 	for pc, l in sortedpairs(fi.bytecode) do
--- 		print (unpack(l))
--- 	end
--- end
---
-
-local function list(t)
-	local o = {}
-	for k,v in pairs(t) do
-		pushf (o, "%s:%q", k, v)
-	end
-	return table.concat(o, ', ')
-end
-
-
-print ("traces:", func)
-local traces, funcs = rectrace(func)
-print ("involved funcs:")
-for i, func in ipairs(funcs) do
-
-	for fn, fi in pairs(func_bc(func)) do
-		print (("    function %q: %s:%d-%d"):format(
-			fn, fi.source, fi.currentline, fi.lastlinedefined))
-		for pc, l in sortedpairs(fi.bytecode) do
-			print ('', unpack(l))
-		end
-	end
-
--- 	print (("    #%d: %q"):format(i, func))
--- 	print (bc_dump(func))
-end
-for i, tr in ipairs(traces) do
-	print ('==============')
-	print ("trace #", i)
-	print ("    events:")
-	for i, evt in ipairs(tr.evt) do
-		print ('', i, unpack(evt))
-	end
-
-	print ("    records:")
-	do
-		local pf
-		for i, rec in ipairs(tr.rec) do
-			local f, pc, l = unpack(rec)
-			if f ~= pf then
-				print ('', f)
-				pf = f
+	return {
+		on = loomstart,
+		off = loomstop,
+		start = function (opt, out)
+			defer = newproxy(true)
+			getmetatable(defer).__gc = function ()
+				local traces, funcs = loomstop()
+				tmpl = assert(assert(io.open(opt or tmpl)):read('*a'))
+				tmpl = require ('template')(tmpl, 'utils', 'traces', 'funcs')
+				out = out or '-'
+				out = out == '-' and io.stdout or assert(io.open(out, 'w'))
+				out:write(tmpl({
+					srclines = srclines,
+					annotated = annotated,
+					sortedpairs = sortedpairs,
+					tracerecord = tracerecord,
+				}, traces, funcs))
 			end
-			print ('', '', i, pc, l)
-		end
-	end
-
-	print ("    ir:") print (tr.ir)
-	print ("    snap:") print (tr.snap)
-	print ("    mcode:") print (tr.mcode)
-	print ("    info: ", list(tr.info))
-	print ("    counts: ", list(tr.n))
-
+			loomstart()
+		end,
+	}
 end
--- print (deepshow(traces))
-
---]]
