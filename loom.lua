@@ -638,7 +638,7 @@ do
 		do_attachs()
 	end
 
-	function loomstop()
+	function loomstop(f, ...)
 		do_detachs()
 		for _, v in ipairs(collecting) do
 			prevexp_t[v[1]](unpack(v, 2, table.maxn(v)))
@@ -649,6 +649,9 @@ do
 		local funcslist = {}
 		for f in pairs(seen_funcs) do
 			funcslist[#funcslist+1] = f
+		end
+		if f then
+			return f(traces_data, funcslist, ...)
 		end
 		return traces_data, funcslist
 	end
@@ -728,25 +731,26 @@ end
 
 --------------------------------------
 
+local template = require 'template'
 local defer
-local tmpl = 'loom.html'
 
 return {
 	on = loomstart,
 	off = loomstop,
+	template = template,
+
 	start = function (opt, out)
+		local tmpl = template(opt or 'loom.html')
 		defer = newproxy(true)
 		getmetatable(defer).__gc = function ()
-			local traces, funcs = loomstop()
-			tmpl = assert(assert(io.open(opt or tmpl)):read('*a'))
-			tmpl = require ('template')(tmpl, 'utils', 'traces', 'funcs')
-			out = out or '-'
-			out = out == '-' and io.stdout or assert(io.open(out, 'w'))
-			out:write(tmpl({
+			local o = loomstop(tmpl, {
 				annotated = annotated,
 				sortedpairs = sortedpairs,
-			}, traces, funcs))
+			})
+			out = (out and assert(io.open(out, 'w')) or io.stdout)
+			out:write(o)
 		end
+
 		loomstart()
 	end,
 }

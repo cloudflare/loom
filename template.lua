@@ -16,9 +16,21 @@ local function escape(s)
   return tostring(s or ''):gsub("[\">/<'&]", _esc)
 end
 
-return function (tpl, ...)
+return function (tpl)
+	if not tpl:find('\n', 1, true) then
+		local f = assert(io.open(tpl))
+		tpl = assert(f:read('*a'))
+		f:close()
+	end
+
+	local args = {'_e'}
+	tpl = tpl:gsub('{{@(.-)}}', function (argl)
+		argl:gsub('(%a%w*)', function (a) args[#args+1] = a return '' end)
+		return ''
+	end)
+
 	local src = (
-		'local _e, %s = ... ' ..
+		'local %s = ... ' ..
 		'local _o = {} ' ..
 		'local function _p(x) _o[#_o+1] = tostring(x or "") end ' ..
 		'local function _fp(f, ...) _p(f:format(...)) end '..
@@ -26,7 +38,7 @@ return function (tpl, ...)
 		'_p[=[%s]=] ' ..
 		'return table.concat(_o)')
 	:format(
-		table.concat({...}, ', '),
+		table.concat(args, ', '),
 		tpl
 			:gsub('[][]=[][]', ']=] _p"%1" _p[=[')
 			:gsub('{{=', ']=] _p(')
