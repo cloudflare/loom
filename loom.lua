@@ -5,8 +5,9 @@ local vmdef = require 'jit.vmdef'
 local bc = require 'jit.bc'
 local disass = require('jit.dis_'..jit.arch)
 
-local band, shl, shr, tohex = bit.band, bit.lshift, bit.rshift, bit.tohex
+local band, shr = bit.band, bit.rshift
 local inf = tonumber('inf')
+
 
 local function pushf(t, f, ...)
 	if select('#', ...) > 0 then
@@ -16,49 +17,6 @@ local function pushf(t, f, ...)
 	return f
 end
 
--- return a new thing on each call
--- usable as a table key
-local function newref()
-	return newproxy()
-end
-
-local function konkat(sep, ...)
-	sep = sep or ''
-	local fmt = ('%s'..sep):rep(select('#', ...)):sub(1, -#sep)
-	return fmt:format(...)
-end
-
--- local function deepget(t, k, ...)
--- 	if type(t) ~= 'table' or k == nil then return t end
--- 	return deepget(t[k], ...)
--- end
---
-local function deepset(v, t, k, k2, ...)
-	if k2 == nil then
-		t[k] = v
-		return v
-	end
-	if type(t[k]) ~= 'table' then
-		t[k] = {t[k]}
-	end
-	return deepset(v, t[k], k2, ...)
-end
-
--- local function deepadd(v, t, ...)
--- 	local where = deepget(t, ...)
--- 	if type(where) == type(v) then
--- 		if type(v) == 'number' then
--- 			return deepset (where + v, t, ...)
--- 		elseif type(v) == 'string' then
--- 			return deepset (where..v, t, ...)
--- 		end
--- 	end
--- 	if type(where) ~= 'table' then
--- 		where = {where}
--- 	end
--- 	where[#where+1] = v
--- 	return v
--- end
 
 local function sortedpairs(t, emptyelem)
 	if emptyelem ~= nil and next(t) == nil then
@@ -73,12 +31,7 @@ local function sortedpairs(t, emptyelem)
 
 	local t2, map = {}, {}
 	for k in pairs(t) do
-		local sk = k
-		if type(k) == 'number' then
-			sk = ('%20g'):format(k)
-		else
-			sk = tostring(k)
-		end
+		local sk = type(k) == 'number' and ('%20g'):format(k) or tostring(k)
 		t2[#t2+1] = sk
 		map[sk] = k
 	end
@@ -90,21 +43,6 @@ local function sortedpairs(t, emptyelem)
 		return k, t[k]
 	end
 end
-
-local function deepshow(t, o, pfx)
-	o = o or {}
-	pfx = pfx and pfx..'~' or ''
-	for k, v in sortedpairs(t) do
-		local label = pfx..tostring(k)
-		if type(v) == 'table' then
-			deepshow (v, o, label)
-		else
-			o[#o+1] = ("%s: %q"):format(label, v)
-		end
-	end
-	return table.concat(o, '\n')
-end
-
 
 -- copied from jit.dump
 
@@ -134,70 +72,10 @@ local function bcline(func, pc, prefix)
 
 	l = l:gsub('%s+$', '')
 	return l
--- 	local funcline = fmtfunc(func, pc)
--- 	return ('%-60s (%s)'):format(l, funcline)
--- -- 	return l and l:gsub('%s+$', "       (" .. fmtfunc(func, pc) .. ")\n")
 end
 
--- mostly copied from jit.bc.dump()
-local function bc_dump(func, o)
-	o = o or {}
-	local fi = jutil.funcinfo(func)
-	if fi.children then
-		for n=-1,-1000000000,-1 do
-			local k = jutil.funck(func, n)
-			if not k then break end
-			if type(k) == "proto" then bc_dump(k, o) end
-		end
-	end
-	o[#o+1] = ("-- BYTECODE -- %s-%d\n"):format(fi.loc, fi.lastlinedefined)
-	local target = bc.targets(func)
-	for pc=1,1000000000 do
-		local s = bcline(func, pc, target[pc] and "=>")
-		if not s then break end
-		o[#o+1] = s
-	end
-	o[#o+1] = '\n'
-	return table.concat(o, '\n')
-end
-
---- inspired by jit.bc.dump()
-local function bc_annotate(func, o)
-	o = o or {}
-
-	local fi = jutil.funcinfo(func)
-	if fi.children then
-		for n=-1,-1000000000,-1 do
-			local k = jutil.funck(func, n)
-			if not k then break end
-			if type(k) == 'proto' then bc_annotate(k, o) end
-		end
-	end
-	local funcstart = tonumber(fi.currentline) or fi.currentline
-
-	deepset(("-- BYTECODE -- %s-%d"):format(fi.loc, fi.lastlinedefined),
-		o, fi.source, funcstart, 0)
-	local target = bc.targets(func)
-	for pc=1, 1000000000 do
-		local s = bcline(func, pc, target[pc] and "=>")
-		local fi_sub = jutil.funcinfo(func, pc)
-		local thisline = tonumber(fi_sub.currentline) or fi_sub.currentline
-		if not s then break end
-		deepset(s, o, fi.source, thisline, pc)
-	end
-	return o
-end
 
 local function func_bc(func, o)
--- 	print ('func_bc', func, type(func))
--- 	do
--- 		local fi = jutil.funcinfo(func)
--- 		for k,v in pairs(fi) do print ('fi', k, v) end
--- 	end
--- 	do
--- 		local k = jutil.funck(func, 0)
--- 		print ('--->funk', k, type(k))
--- 	end
 	o = o or {}
 	o[func] = jutil.funcinfo(func)
 	if o[func].children then
@@ -285,10 +163,8 @@ local function dump_mcode(tr)
 	local info = jutil.traceinfo(tr)
 	if not info then return end
 	local mcode, addr, loop = jutil.tracemc(tr)
--- 	pushf(o, "(mcode: %d, addr %08x, loop %d)\n", #mcode, addr, loop)
 	if not mcode then return end
 	if addr < 0 then addr = addr + 2^32 end
--- 	pushf (o, "---- TRACE "..tr.." mcode "..#mcode.."\n")
 	local ctx = disass.create(mcode, addr, function (s) pushf(o, s) end)
 	ctx.hexdump = 0
 	ctx.symtab = fillsymtab(tr, info.nexit)
@@ -422,7 +298,6 @@ local function printsnap(tr, snap)
 			elseif band(sn, 0x80000) ~= 0 then -- SNAP_SOFTFPNUM
 				pushf(o, "%04d/%04d", ref, ref+1)
 			else
--- 				local m, ot, op1, op2 = jutil.traceir(tr, ref)
 				pushf(o, "%04d", ref)
 			end
 			pushf(o, band(sn, 0x10000) == 0 and " " or "|") -- SNAP_FRAME
@@ -461,7 +336,7 @@ end
 local function dumpcallfunc(o, tr, ins)
 	local ctype
 	if ins > 0 then
-		local m, ot, op1, op2 = jutil.traceir(tr, ins)
+		local m, ot, op1, op2 = jutil.traceir(tr, ins)		-- luacheck: ignore m
 		if band(ot, 31) == 0 then -- nil type means CARG(func, ctype).
 			ins = op1
 			ctype = formatk(tr, op2)
@@ -480,7 +355,7 @@ end
 	if ins < 0 then
 		pushf(o, formatk(tr, ins))
 	else
-		local m, ot, op1, op2 = jutil.traceir(tr, ins)
+		local m, ot, op1, op2 = jutil.traceir(tr, ins)		-- luacheck: ignore m
 		local oidx = 6*shr(ot, 8)
 		local op = vmdef.irnames:sub(oidx+1, oidx+6)
 		if op == "CARG  " then
@@ -503,7 +378,6 @@ local function dump_ir(tr)
 	if not info then return end
 	local nins = info.nins
 	local o = {}
--- 	o[#o+1] = "---- TRACE "..tr.." IR\n"
 	local irnames = vmdef.irnames
 	local snapref = 65536
 	local snap, snapno
@@ -608,8 +482,7 @@ local function fmterr(err, info)
 end
 
 
-local function tracelabel(what, tr, func, pc, otr, oex)
-	local startloc = fmtfunc(func, pc)
+local function tracelabel(tr, func, pc, otr, oex)
 	local startex = otr and "("..otr.."/"..oex..") " or ""
 	local info = jutil.traceinfo(tr)
 	local link, ltype = info.link, info.linktype
@@ -669,9 +542,9 @@ do
 
 	local traces_data, seen_funcs = {}, {}
 	local prevexp_t = {
-		trace = function (what, tr, func, pc, otr, oex)
+		trace = function (what, tr, func, pc, otr, oex)		-- luacheck: ignore func pc
 			if what == 'start' then
-				local mcode, addr, loop = jutil.tracemc(tr)
+				local mcode, addr, loop = jutil.tracemc(tr)	-- luacheck: ignore mcode loop
 				if otr and oex then
 					symtab[addr] = ("Trace #%d (exit %d/%d)"):format(tr, otr, oex)
 				else
@@ -701,21 +574,21 @@ do
 	end
 
 	local exp_trace_t = {
-		start = function (tr, func, pc, otr, oex)
+		start = function (tr, func, pc, otr, oex)	-- luacheck: ignore func pc
 			local t = gettrace(tr)
 			t.parent = t.parent or otr
 			t.p_exit = t.p_exit or oex
 		end,
 
-		stop = function (tr, func, pc, otr, oex)
+		stop = function (tr, func, pc, otr, oex)	-- luacheck: ignore tr func pc otr oex
 		end,
 
-		abort = function (tr, func, pc, otr, oex)
+		abort = function (tr, func, pc, otr, oex)	-- luacheck: ignore func pc
 			local t = gettrace(tr)
 			t.err = t.err or fmterr(otr, oex)
 		end,
 
-		flush = function (tr, func, pc, otr, oex)
+		flush = function (tr, func, pc, otr, oex)	-- luacheck: ignore tr func pc otr oex
 			symtab, nexitsym = {}, 0
 		end,
 	}
@@ -730,7 +603,7 @@ do
 			t.snap = t.snap or dump_snap(tr)
 			t.mcode = t.mcode or dump_mcode(tr)
 			t.info = t.info or jutil.traceinfo(tr)
-			t.tracelabel = t.tracelabel or tracelabel(what, tr, func, pc, otr, oex)
+			t.tracelabel = t.tracelabel or tracelabel(tr, func, pc, otr, oex)
 
 			t.evt[#t.evt +1] = {
 				what, pc, fmtfunc(func, pc),
@@ -792,7 +665,7 @@ end
 local function annotated(funcs, traces)
 	local starts = {}
 	for _, f in ipairs(funcs) do
-		for fn, fi in pairs(func_bc(f)) do
+		for _, fi in pairs(func_bc(f)) do
 			starts[#starts+1] = {fi.currentline or 0, fi}
 		end
 	end
@@ -803,7 +676,7 @@ local function annotated(funcs, traces)
 
 	local srcs = {}
 	local o, lastline = {}, 0
-	for i, fi in ipairs(starts) do
+	for _, fi in ipairs(starts) do
 		if fi.source and type(fi.func)=='function' then
 			local srcname = fi.source:gsub('^@', '')
 			srcs[srcname] = srcs[srcname] or srclines(srcname)
@@ -811,7 +684,7 @@ local function annotated(funcs, traces)
 			local src, of = srcs[srcname], o[srcname]
 
 			for pc, l in sortedpairs(fi.bytecode) do
-				local lnum, bc = unpack(l)
+				local lnum, bc = unpack(l)			-- luacheck: ignore bc
 				for i = lastline+1, lnum-1 do
 					of[#of+1] = {
 						i = i,
@@ -839,9 +712,9 @@ local function annotated(funcs, traces)
 
 	for i, tr in ipairs(traces) do
 		for j, rec in ipairs(tr.rec) do
-			local f, pc, bcl = unpack (rec)
-			for srcname, osrc in pairs(o) do
-				for k, ol in ipairs(osrc) do
+			local f, pc, bcl = unpack (rec)			-- luacheck: ignore bcl
+			for srcname, osrc in pairs(o) do		-- luacheck: ignore srcname
+				for _, ol in ipairs(osrc) do
 					if ol.func == f and ol.pc == pc and #ol.bc>0 then
 						ol.tr[#ol.tr+1] = {i, j}
 						break
@@ -856,14 +729,13 @@ end
 local function tracerecord(tr)
 	local o = {}
 	local pf
-	for i, rec in ipairs(tr.rec) do
-		local f, pc, l = unpack(rec)
+	for _, rec in ipairs(tr.rec) do
+		local f, pc, l = unpack(rec)			-- luacheck: ignore pc
 		if f ~= pf then
 			o[#o+1] =  tostring(f)
 			pf = f
 		end
 		o[#o+1] = l
--- 		pushf (o, "		%s", l)
 	end
 	return table.concat(o, '\n')
 end
