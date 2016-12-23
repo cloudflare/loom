@@ -726,19 +726,6 @@ local function annotated(funcs, traces)
 	return o
 end
 
-local function tracerecord(tr)
-	local o = {}
-	local pf
-	for _, rec in ipairs(tr.rec) do
-		local f, pc, l = unpack(rec)			-- luacheck: ignore pc
-		if f ~= pf then
-			o[#o+1] =  tostring(f)
-			pf = f
-		end
-		o[#o+1] = l
-	end
-	return table.concat(o, '\n')
-end
 --------------------------------------
 
 local defer
@@ -757,10 +744,8 @@ do
 				out = out or '-'
 				out = out == '-' and io.stdout or assert(io.open(out, 'w'))
 				out:write(tmpl({
-					srclines = srclines,
 					annotated = annotated,
 					sortedpairs = sortedpairs,
-					tracerecord = tracerecord,
 				}, traces, funcs))
 			end
 			loomstart()
