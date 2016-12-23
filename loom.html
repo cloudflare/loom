@@ -20,16 +20,15 @@
 		end
 
 		local function annottraces(txt)
-			txt = txt:gsub('%(exit (%d+)/(%d+)%)', function(a,b)
+			txt = txt:gsub('%(exit (%d+)/(%d+)%)', function (a, b)
 				a, b = tonumber(a), tonumber(b)
-				return ('(exit %d/%d [n=%d])'):format(a,b, traces[a].exits[b] or 0)
+				return ('(exit %d/%d [n=%d])'):format(a, b, traces[a].exits[b] or 0)
 			end)
-			txt = __e__(txt)
-			for i, tr in ipairs(traces) do
-				local ref = ('Trace #%d'):format(i)
-				local dst = ('<span class="tr%03d">%%0</span>'):format(i)
-				txt = txt:gsub(ref, dst)
-			end
+			txt = _e(txt)
+			txt = txt:gsub('Trace #(%d+)', function (tr)
+				return ('<span class="tr%03d">Trace #%d</span>'):format(
+					tr, tr)
+			end)
 			return txt
 		end
 

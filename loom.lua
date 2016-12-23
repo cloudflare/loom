@@ -729,26 +729,24 @@ end
 --------------------------------------
 
 local defer
-do
-	local tmpl = 'loom.html'
+local tmpl = 'loom.html'
 
-	return {
-		on = loomstart,
-		off = loomstop,
-		start = function (opt, out)
-			defer = newproxy(true)
-			getmetatable(defer).__gc = function ()
-				local traces, funcs = loomstop()
-				tmpl = assert(assert(io.open(opt or tmpl)):read('*a'))
-				tmpl = require ('template')(tmpl, 'utils', 'traces', 'funcs')
-				out = out or '-'
-				out = out == '-' and io.stdout or assert(io.open(out, 'w'))
-				out:write(tmpl({
-					annotated = annotated,
-					sortedpairs = sortedpairs,
-				}, traces, funcs))
-			end
-			loomstart()
-		end,
-	}
-end
+return {
+	on = loomstart,
+	off = loomstop,
+	start = function (opt, out)
+		defer = newproxy(true)
+		getmetatable(defer).__gc = function ()
+			local traces, funcs = loomstop()
+			tmpl = assert(assert(io.open(opt or tmpl)):read('*a'))
+			tmpl = require ('template')(tmpl, 'utils', 'traces', 'funcs')
+			out = out or '-'
+			out = out == '-' and io.stdout or assert(io.open(out, 'w'))
+			out:write(tmpl({
+				annotated = annotated,
+				sortedpairs = sortedpairs,
+			}, traces, funcs))
+		end
+		loomstart()
+	end,
+}
