@@ -747,7 +747,8 @@ return {
 				annotated = annotated,
 				sortedpairs = sortedpairs,
 			})
-			out = (out and assert(io.open(out, 'w')) or io.stdout)
+			out = type(out)=='string' and assert(io.open(out, 'w'))
+					or out or io.stdout
 			out:write(o)
 		end
 
