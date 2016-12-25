@@ -25,7 +25,7 @@ return function (tpl)
 
 	local args = {'_e'}
 	tpl = tpl:gsub('{{@(.-)}}', function (argl)
-		argl:gsub('(%a%w*)', function (a) args[#args+1] = a return '' end)
+		argl:gsub('([_%a][_%w]*)', function (a) args[#args+1] = a return '' end)
 		return ''
 	end)
 
