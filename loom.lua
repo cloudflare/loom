@@ -31,7 +31,7 @@ local function sortedpairs(t, emptyelem)
 
 	local t2, map = {}, {}
 	for k in pairs(t) do
-		local sk = type(k) == 'number' and ('%20g'):format(k) or tostring(k)
+		local sk = type(k) == 'number' and ('%20.6f'):format(k) or tostring(k)
 		t2[#t2+1] = sk
 		map[sk] = k
 	end
@@ -351,7 +351,7 @@ local function dumpcallfunc(o, tr, ins)
 end
 
 -- Recursively gather CALL* args and dump them.
-		local function dumpcallargs(o, tr, ins)
+local function dumpcallargs(o, tr, ins)
 	if ins < 0 then
 		pushf(o, formatk(tr, ins))
 	else
@@ -359,7 +359,7 @@ end
 		local oidx = 6*shr(ot, 8)
 		local op = vmdef.irnames:sub(oidx+1, oidx+6)
 		if op == "CARG  " then
-			dumpcallargs(tr, op1)
+			dumpcallargs(o, tr, op1)
 			if op2 < 0 then
 				pushf(o, " "..formatk(tr, op2))
 			else
@@ -427,9 +427,9 @@ local function dump_ir(tr)
 				if m2 == 1*4 then -- op2 == IRMlit
 					pushf (o, "%-10s  (", vmdef.ircall[op2])
 				else
-					ctype = dumpcallfunc(tr, op2)
+					ctype = dumpcallfunc(o, tr, op2)
 				end
-				if op1 ~= -1 then dumpcallargs(tr, op1) end
+				if op1 ~= -1 then dumpcallargs(o, tr, op1) end
 				pushf(o, ")")
 				if ctype then pushf(o, " ctype "..ctype) end
 			elseif op == "CNEW  " and op2 == -1 then
@@ -485,6 +485,8 @@ end
 local function tracelabel(tr, func, pc, otr, oex)
 	local startex = otr and "("..otr.."/"..oex..") " or ""
 	local info = jutil.traceinfo(tr)
+	if not info then return '-- uncompiled --' end
+
 	local link, ltype = info.link, info.linktype
 	if ltype == "interpreter" then
 		return ("%s -- fallback to interpreter\n")
@@ -545,10 +547,12 @@ do
 		trace = function (what, tr, func, pc, otr, oex)		-- luacheck: ignore func pc
 			if what == 'start' then
 				local mcode, addr, loop = jutil.tracemc(tr)	-- luacheck: ignore mcode loop
-				if otr and oex then
-					symtab[addr] = ("Trace #%d (exit %d/%d)"):format(tr, otr, oex)
-				else
-					symtab[addr] = ("Trace #%d"):format(tr)
+				if addr ~= nil then
+					if otr and oex then
+						symtab[addr] = ("Trace #%d (exit %d/%d)"):format(tr, otr, oex)
+					else
+						symtab[addr] = ("Trace #%d"):format(tr)
+					end
 				end
 			end
 		end,
@@ -606,7 +610,7 @@ do
 			t.tracelabel = t.tracelabel or tracelabel(tr, func, pc, otr, oex)
 
 			t.evt[#t.evt +1] = {
-				what, pc, fmtfunc(func, pc),
+				what, func, pc,
 				what=='abort' and fmterr(otr, oex) or nil,
 			}
 
@@ -657,10 +661,13 @@ do
 	end
 end
 --------------------------------------
-local function srclines(f)
-	local t = {}
-	for l in io.lines(f) do
-		t[#t+1] = l
+local function srclines(fn)
+	local t, f = {}, io.open(fn)
+	if f then
+		for l in f:lines() do
+			t[#t+1] = l
+		end
+		f:close()
 	end
 	return t
 end
@@ -697,6 +704,7 @@ local function annotated(funcs, traces)
 						bc = '',
 						back = i<lastline,
 						tr = {},
+						evt = {},
 					}
 				end
 				of[#of+1] = {
@@ -707,6 +715,7 @@ local function annotated(funcs, traces)
 					bc = bc,
 					back = lnum<lastline,
 					tr = {},
+					evt = {},
 				}
 				lastline = math.max(lastline, lnum)
 			end
@@ -725,6 +734,17 @@ local function annotated(funcs, traces)
 				end
 			end
 		end
+		for j, evt in ipairs(tr.evt) do
+			local what, func, pc, msg = unpack(evt)
+			for srcname, osrc in pairs(o) do		-- luacheck: ignore srcname
+				for _, ol in ipairs(osrc) do
+					if ol.func == func and ol.pc == pc and #ol.bc>0 then
+						local k = msg or what
+						ol.evt[k] = (ol.evt[k] or 0) + 1
+					end
+				end
+			end
+		end
 	end
 	return o
 end
@@ -737,21 +757,21 @@ local defer
 return {
 	on = loomstart,
 	off = loomstop,
-	template = template,
 
 	start = function (opt, out)
 		local tmpl = template(opt or 'loom.html')
 		defer = newproxy(true)
-		getmetatable(defer).__gc = function ()
-			local o = loomstop(tmpl, {
-				annotated = annotated,
-				sortedpairs = sortedpairs,
-			})
+		getmetatable(defer).__gc = xpcall(function ()
+			local o = loomstop(tmpl)
 			out = type(out)=='string' and assert(io.open(out, 'w'))
 					or out or io.stdout
 			out:write(o)
-		end
+		end, function(err) print(debug.traceback(err)) end)
 
 		loomstart()
 	end,
+
+	template = template,
+	annotated = annotated,
+	sortedpairs = sortedpairs,
 }

@@ -9,11 +9,9 @@ local _esc = {
 	['<'] = '&lt;',
 	['>'] = '&gt;',
 	['"'] = '&quot;',
-	["'"] = '&#39;',
-	['/'] = '&#47;'
 }
 local function escape(s)
-  return tostring(s or ''):gsub("[\">/<'&]", _esc)
+  return tostring(s or ''):gsub('[><&"]', _esc)
 end
 
 return function (tpl)
