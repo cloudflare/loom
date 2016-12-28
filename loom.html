@@ -85,10 +85,13 @@
 				<td {{= class{phantom=l.back} }}>{{ notsame and l.i or '' }}</td>
 				<td {{= class{phantom=l.back} }}>{{ notsame and l.src or '' }}</td>
 				<td {{= class{[funclabel(l.func)] = l.bc ~= ''} }}>{{ l.bc }}</td>
-				<td>{% for i, tr in ipairs(l.tr) do %} <span
-						id="{{:'tr%03d_%03d', tr[1], tr[2]}}"
-						class="{{:'tr%03d', tr[1]}}"
-					>{{tr[1]}}/{{tr[2]}}</span> {%
+				<td>{% for i, tr in ipairs(l.tr) do
+					local trref = ('tr%03d'):format(tr[1])
+					local lnref = ('tr%03d_%03d'):format(tr[1], tr[2])
+					%} <a href="#{{trref}}" name="{{lnref}}"><span
+						id="{{lnref}}"
+						class="{{trref}}"
+					>{{tr[1]}}/{{tr[2]}}</span></a> {%
 				end %}</td>
 				<td>{% for msg, n in pairs(l.evt) do
 					%}<span>"{{msg}}" [n={{n}}]</span>{%
@@ -100,7 +103,7 @@
 
 	{% for i, tr in loom.allipairs(traces) do %}
 		<br/>
-		<table class="popup trace {{:'tr%03d', i}}" id="{{:'tr%03d', i}}" cellpadding="4">
+		<a name="#{{:'tr%0dd', i}}"><table class="popup trace {{:'tr%03d', i}}" id="{{:'tr%03d', i}}" cellpadding="4">
 			<tr>
 				<th colspan="3">Trace #{{i}}: {{tr.tracelabel}}</th>
 			</tr>
@@ -111,9 +114,12 @@
 			</tr>
 			<tr class="white" valign="top">
 				<td class="code bc"><table cellpadding="0" cellspacing="0">
-					{% for j, rec in ipairs(tr.rec) do local f, pc, l = unpack(rec) %}
-					<tr>
-						<td class="{{:'tr%03d', i}}">{{i}}/{{j}}</td>
+					{% for j, rec in ipairs(tr.rec) do
+						local f, pc, l, src = unpack(rec)
+						local lnref = ('tr%03d_%03d'):format(i, j)
+						%}
+					<tr title="{{src and (src.i..': '.. (src.l or ''))}}">
+						<td class="{{:'tr%03d', i}}"><a href="#{{lnref}}">{{i}}/{{j}}</a></td>
 						<td class="{{funclabel(f)}}"> {{l}}</td>
 					</tr>
 					{% end %}
@@ -121,7 +127,7 @@
 				<td class="code ir">{{tr.ir}}</td>
 				<td class="code mcode">{{=annottraces(tr.mcode)}}</td>
 			</tr>
-		</table>
+		</table></a>
 	{% end %}
 	</body>
 </html>

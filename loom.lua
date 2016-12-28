@@ -740,6 +740,7 @@ local function annotated(funcs, traces)
 				for _, ol in ipairs(osrc) do
 					if ol.func == f and ol.pc == pc and #ol.bc>0 then
 						ol.tr[#ol.tr+1] = {i, j}
+						rec[#rec+1] = {i=ol.i, l=ol.src}
 						break
 					end
 				end
