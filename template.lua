@@ -15,7 +15,9 @@ local function escape(s)
 end
 
 return function (tpl)
+	local tplname = 'tmpl'
 	if not tpl:find('\n', 1, true) then
+		tplname = tpl
 		local f = assert(io.open(tpl))
 		tpl = assert(f:read('*a'))
 		f:close()
@@ -46,7 +48,7 @@ return function (tpl)
 			:gsub('{%%', ']=] ')
 			:gsub('%%}', ' _p[=[')
 	)
-	local f = assert(loadstring(src))
+	local f = assert(loadstring(src, tplname))
 	return function (...)
 		return f(escape, ...)
 	end
