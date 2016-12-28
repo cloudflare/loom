@@ -46,7 +46,7 @@ That is, both return values (the `traces` and `funcs` arrays) are passed to the 
 
 Implements the `-jloom[=tmpl[,out]]` option. The `tmpl` argument is passed to `loom.template()` to create a reporting function.  If omitted, defaults to `'loom.html'`.  The `out` parameter is either a writeable open file or a file name where the report is written into (after formatting by the template), defaults to `io.stdout`.  When the Lua VM is terminated normally, `loom.off()` is called with the reporting function created by the given template.,
 
-### Utility functions
+### Utility Functions
 
 There are some functions included in the `loom` package to help formatting a report.
 
@@ -61,6 +61,10 @@ The template is compiled into a Lua function that takes some arguments (named wi
 
 Returns an annotated listing of the source code of the given `funcs` and `traces` arrays.
 
+**`loom.allipairs(t)`**
+
+Like `ipairs(t)`, but stops at `table.maxn(t)` instead of the first `nil` value.
+
 **`loom.sortedpairs(t)`**
 
 Returns an iterator that visits the same pairs as `pairs(t)`, but sorted by keys.
@@ -72,22 +76,22 @@ Template syntax
 The included template implementation is based on Danila Poyarkov's [lua-template](https://github.com/dannote/lua-template), with a syntax more like Django's or Handlebar's, to make it more friendly to editors that help with HTML content.
 
 
-### `{% lua code %}`
+**`{% lua code %}`**
 
 Embeds any Lua code
 
-### `{{ expression }}`
+**`{{ expression }}`**
 
-Outputs the result of the Lua expression, with the `&'"</>` characters escaped.
+Outputs the result of the Lua expression, with the `&`, `"`, `<` and `>` characters escaped.
 
-### `{{= expression }}`
+**`{{= expression }}`**
 
 Outputs the result of the Lua expression verbatim, without any character escaping.
 
-### `{{: 'fmt', args, ... }}`
+**`{{: 'fmt', args, ... }}`**
 
 Outputs the result of `string.format(fmt, args, ...)` without any escaping.
 
-### `{{@ name ... }}`
+**`{{@ name ... }}`**
 
 Defines template argument names.  Each `name` must be a valid Lua variable name (that is, a sequence of letters, numbers or underscores not beginning with a number), separated by commas or spaces (or any non-alfanumeric-underscore character).

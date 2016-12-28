@@ -17,6 +17,15 @@ local function pushf(t, f, ...)
 	return f
 end
 
+local function allipairs(t)
+	local maxn = table.maxn(t)
+	return function (t, k)
+		repeat
+			k = k + 1
+		until t[k] ~= nil or k > maxn
+		return k <= maxn and k or nil, t[k]
+	end, t, 0
+end
 
 local function sortedpairs(t, emptyelem)
 	if emptyelem ~= nil and next(t) == nil then
@@ -636,9 +645,11 @@ do
 		end,
 	}
 
-	function loomstart()
-		traces_data, seen_funcs = {}, {}
-		collecting = {[0]=0}
+	function loomstart(clear)
+		if clear then
+			traces_data, seen_funcs = {}, {}
+			collecting = {[0]=0}
+		end
 		do_attachs()
 	end
 
@@ -651,8 +662,8 @@ do
 			expand_t[v[1]](unpack(v, 2, table.maxn(v)))
 		end
 		local funcslist = {}
-		for f in pairs(seen_funcs) do
-			funcslist[#funcslist+1] = f
+		for fun in pairs(seen_funcs) do
+			funcslist[#funcslist+1] = fun
 		end
 		if f then
 			return f(traces_data, funcslist, ...)
@@ -722,7 +733,7 @@ local function annotated(funcs, traces)
 		end
 	end
 
-	for i, tr in ipairs(traces) do
+	for i, tr in allipairs(traces) do
 		for j, rec in ipairs(tr.rec) do
 			local f, pc, bcl = unpack (rec)			-- luacheck: ignore bcl
 			for srcname, osrc in pairs(o) do		-- luacheck: ignore srcname
@@ -734,7 +745,7 @@ local function annotated(funcs, traces)
 				end
 			end
 		end
-		for j, evt in ipairs(tr.evt) do
+		for _, evt in ipairs(tr.evt) do
 			local what, func, pc, msg = unpack(evt)
 			for srcname, osrc in pairs(o) do		-- luacheck: ignore srcname
 				for _, ol in ipairs(osrc) do
@@ -773,5 +784,6 @@ return {
 
 	template = template,
 	annotated = annotated,
+	allipairs = allipairs,
 	sortedpairs = sortedpairs,
 }

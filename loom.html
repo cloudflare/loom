@@ -57,12 +57,12 @@
 			.white {
 				background-color: white;
 			}
-			{% for i = 1, #funcs do %}{{:'.fn%03d', i}} {
+			{% for i = 1, table.maxn(funcs) do %}{{:'.fn%03d', i}} {
 				background-color: hsla({{math.random(360)}}, 100%, 90%, 1);
 			}
 			{% end %}
 
-			{% for i = 1, #traces do %}{{:'.tr%03d', i}} {
+			{% for i = 1, table.maxn(traces) do %}{{:'.tr%03d', i}} {
 				background-color: hsla({{math.random(360)}}, 80%, 75%, 1);
 			}
 			{% end %}
@@ -98,7 +98,7 @@
 		{% end %}
 	</table>
 
-	{% for i, tr in ipairs(traces) do %}
+	{% for i, tr in loom.allipairs(traces) do %}
 		<br/>
 		<table class="popup trace {{:'tr%03d', i}}" id="{{:'tr%03d', i}}" cellpadding="4">
 			<tr>
