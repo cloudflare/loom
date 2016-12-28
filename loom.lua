@@ -786,12 +786,12 @@ return {
 	start = function (opt, out)
 		local tmpl = template(opt or 'loom.html')
 		defer = newproxy(true)
-		getmetatable(defer).__gc = xpcall(function ()
+		getmetatable(defer).__gc = function() xpcall(function ()
 			local o = loomstop(tmpl)
 			out = type(out)=='string' and assert(io.open(out, 'w'))
 					or out or io.stdout
 			out:write(o)
-		end, function(err) print(debug.traceback(err)) end)
+		end, function(err) print(debug.traceback(err)) end) end
 
 		loomstart()
 	end,
