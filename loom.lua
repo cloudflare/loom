@@ -683,52 +683,65 @@ local function srclines(fn)
 	return t
 end
 
+local function defget(t, k, d)
+	local v = t[k] or d
+	if v == nil then v = {} end
+	if t[k] == nil then t[k] = v end
+	return v
+end
+
+
 local function annotated(funcs, traces)
-	local starts = {}
+	local ranges = {}
 	for _, f in ipairs(funcs) do
-		for _, fi in pairs(func_bc(f)) do
-			starts[#starts+1] = {fi.currentline or 0, fi}
+		local fi = func_bc(f)[f]
+		if fi.source and type(fi.func)=='function' then
+			local srcranges = defget(ranges, fi.source:gsub('^@', ''), nil)
+			local lineranges = defget(srcranges, fi.linedefined, nil)
+			lineranges[#lineranges+1] = fi
 		end
 	end
-	table.sort(starts, function(a, b) return a[1]<b[1] end)
-	for i, v in ipairs(starts) do
-		starts[i] = v[2]
-	end
 
-	local srcs = {}
-	local o, lastline = {}, 0
-	for _, fi in ipairs(starts) do
-		if fi.source and type(fi.func)=='function' then
-			local srcname = fi.source:gsub('^@', '')
-			srcs[srcname] = srcs[srcname] or srclines(srcname)
-			o[srcname] = o[srcname] or {}
-			local src, of = srcs[srcname], o[srcname]
-
-			for pc, l in sortedpairs(fi.bytecode) do
-				local lnum, bc = unpack(l)			-- luacheck: ignore bc
-				for i = lastline+1, lnum-1 do
-					of[#of+1] = {
-						i = i,
-						src = src[i],
-						func = fi.func,
-						pc = pc,
-						bc = '',
-						back = i<lastline,
-						tr = {},
-						evt = {},
-					}
+	local o = {}
+	for srcname, srcranges in sortedpairs(ranges) do
+		o[srcname] = {}
+		local of, src = o[srcname], srclines(srcname)
+		local lastline = nil
+		local function newline(i, func, pc, bc)
+			local nl = {
+				i = i,
+				src = src[i],
+				func = func,
+				pc = pc,
+				bc = bc or '',
+				back = type(i)=='number' and i <= lastline,
+				tr = {},
+				evt = {},
+			}
+			of[#of+1] = nl
+			return nl
+		end
+		for startline, lst in allipairs(srcranges) do
+			for _, fi in ipairs(lst) do
+				lastline = lastline or math.max(0, startline-2)
+				for pc, l in sortedpairs(fi.bytecode or {}) do
+					local lnum, bc = unpack(l)
+					if lnum > lastline + 5 then
+						for i = lastline+1, lastline+3 do
+							newline (i)
+						end
+						newline ('...')
+						for i = lnum-2, lnum-1 do
+							newline(i, fi.func)
+						end
+					else
+						for i = lastline+1, lnum-1 do
+							newline(i, fi.func)
+						end
+					end
+					newline(lnum, fi.func, pc, bc)
+					lastline = math.max(lastline, lnum)
 				end
-				of[#of+1] = {
-					i = lnum,
-					src = src[lnum],
-					func = fi.func,
-					pc = pc,
-					bc = bc,
-					back = lnum<lastline,
-					tr = {},
-					evt = {},
-				}
-				lastline = math.max(lastline, lnum)
 			end
 		end
 	end

@@ -14,6 +14,7 @@
 
 		local _ft_, _fndx_ = {}, 0
 		local function funclabel(f)
+			if not f then return '' end
 			if _ft_[f] == nil then
 				_fndx_ = _fndx_+1
 				_ft_[f] = ('fn%03d'):format(_fndx_)
@@ -85,7 +86,7 @@
 				<td {{= class{phantom=l.back} }}>{{ notsame and l.i or '' }}</td>
 				<td {{= class{phantom=l.back} }}>{{ notsame and l.src or '' }}</td>
 				<td {{= class{[funclabel(l.func)] = l.bc ~= ''} }}>{{ l.bc }}</td>
-				<td>{% for i, tr in ipairs(l.tr) do
+				<td>{% for i, tr in ipairs(l.tr or {}) do
 					local trref = ('tr%03d'):format(tr[1])
 					local lnref = ('tr%03d_%03d'):format(tr[1], tr[2])
 					%} <a href="#{{trref}}" name="{{lnref}}"><span
@@ -93,7 +94,7 @@
 						class="{{trref}}"
 					>{{tr[1]}}/{{tr[2]}}</span></a> {%
 				end %}</td>
-				<td>{% for msg, n in pairs(l.evt) do
+				<td>{% for msg, n in pairs(l.evt or {}) do
 					%}<span>"{{msg}}" [n={{n}}]</span>{%
 				end %}</td>
 			</tr>
