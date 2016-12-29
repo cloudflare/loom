@@ -20,7 +20,7 @@ end
 local function allipairs(t, start)
 	start = start or 1
 	local maxn = table.maxn(t)
-	return function (t, k)
+	return function (t, k)			-- luacheck: ignore t
 		repeat
 			k = k + 1
 		until t[k] ~= nil or k > maxn
@@ -726,8 +726,7 @@ end
 
 local function annotated(funcs, traces)
 	local ranges = {}
-	local builtins = {}
-	for f, fi in pairs(funcs) do
+	for f, fi in pairs(funcs) do		-- luacheck: ignore f
 		if fi.source then
 			local srcranges = defget(ranges, fi.source:gsub('^@', ''), nil)
 			local lineranges = defget(srcranges, fi.linedefined, nil)
@@ -740,13 +739,13 @@ local function annotated(funcs, traces)
 		o[srcname] = {}
 		local of, src = o[srcname], srclines(srcname)
 		local lastline = nil
-		local function newline(i, func, pc, bc)
+		local function newline(i, func, pc, bcl)
 			local nl = {
 				i = i,
 				src = src[i],
 				func = func,
 				pc = pc,
-				bc = bc or '',
+				bcl = bcl or '',
 				back = type(i)=='number' and i <= lastline,
 				tr = {},
 				evt = {},
@@ -756,9 +755,9 @@ local function annotated(funcs, traces)
 		end
 		for startline, lst in allipairs(srcranges, 0) do
 			for _, fi in ipairs(lst) do
-				lastline = lastline or math.max(0, startline-2)
+				lastline = math.max(0, startline-2)
 				for pc, l in sortedpairs(fi.bytecode or {}) do
-					local lnum, bc = unpack(l)
+					local lnum, bcl = unpack(l)
 					if lnum > lastline + 5 then
 						for i = lastline+1, lastline+3 do
 							newline (i)
@@ -772,7 +771,7 @@ local function annotated(funcs, traces)
 							newline(i, fi.func)
 						end
 					end
-					newline(lnum, fi.func, pc, bc)
+					newline(lnum, fi.func, pc, bcl)
 					lastline = math.max(lastline, lnum)
 				end
 			end
