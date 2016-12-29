@@ -31,7 +31,7 @@ Starts recording all JIT events and traces.
 
 Stops recording and performs any processing and cross references needed to actually generate a report.
 
-Called without any arguments, returns two Lua arrays, one with the processed trace information and a second one with all the functions involved in those traces execution.
+Called without any arguments, returns two Lua tables, one with the processed trace information and a second one with all the functions involved in those traces execution.
 
 The second form is equivalent to
 

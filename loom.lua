@@ -664,8 +664,11 @@ do
 		end
 		local funcslist = {}
 		for fun in pairs(seen_funcs) do
-			funcslist[#funcslist+1] = fun
+			for subf, fi in pairs(func_bc(fun)) do
+				funcslist[subf] = fi
+			end
 		end
+
 		if f then
 			return f(traces_data, funcslist, ...)
 		end
@@ -693,16 +696,9 @@ end
 
 
 local function annotated(funcs, traces)
-	local funcfi = {}
-	for _, f in ipairs(funcs) do
-		for subf, fi in pairs(func_bc(f)) do
-			funcfi[subf] = fi
-		end
-		if not funcfi[f] then print ("falta", f) end
-	end
 	local ranges = {}
 	local builtins = {}
-	for _, fi in pairs(funcfi) do
+	for f, fi in pairs(funcs) do
 		if fi.source then
 			local srcranges = defget(ranges, fi.source:gsub('^@', ''), nil)
 			local lineranges = defget(srcranges, fi.linedefined, nil)
