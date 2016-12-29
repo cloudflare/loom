@@ -142,7 +142,7 @@ local function fillsymtab(tr, nexit)
 		local ircall = vmdef.ircall
 		for i=0,#ircall do
 			local addr = jutil.ircalladdr(i)
-			if addr ~= 0 then
+			if addr and addr ~= 0 then
 				if addr < 0 then addr = addr + 2^32 end
 				t[addr] = ircall[i]
 			end
@@ -495,7 +495,7 @@ end
 local function tracelabel(tr, func, pc, otr, oex)
 	local startex = otr and "("..otr.."/"..oex..") " or ""
 	local info = jutil.traceinfo(tr)
-	if not info then return '-- uncompiled --' end
+	if not info then return '-- no trace info --' end
 
 	local link, ltype = info.link, info.linktype
 	if ltype == "interpreter" then
@@ -553,6 +553,7 @@ do
 	end
 
 	local traces_data, seen_funcs = {}, {}
+	local prevtraces = {}
 	local prevexp_t = {
 		trace = function (what, tr, func, pc, otr, oex)		-- luacheck: ignore func pc
 			if what == 'start' then
@@ -569,8 +570,14 @@ do
 		record = function() end,
 		texit = function () end,
 	}
-	local function gettrace(tr)
-		traces_data[tr] = traces_data[tr] or {
+	local function gettrace(tn)
+		local tr = traces_data[tn]
+		if tr then return tr end
+
+		tr = prevtraces[tn] or {
+			info = jutil.traceinfo(tn) or {},
+			ir = dump_ir(tn),
+			snap = dump_snap(tn),
 			evt = {},
 			rec = {},
 			n = {
@@ -584,7 +591,9 @@ do
 			},
 			exits = {},
 		}
-		return traces_data[tr]
+		tr.mcode = dump_mcode(tn)
+		traces_data[tn] = tr
+		return tr
 	end
 
 	local exp_trace_t = {
@@ -612,12 +621,8 @@ do
 			local t = gettrace(tr)
 			t.n.trace = t.n.trace + 1
 			t.n[what] = (t.n[what] or 0) + 1
-
-			t.ir = t.ir or dump_ir(tr)
-			t.snap = t.snap or dump_snap(tr)
-			t.mcode = t.mcode or dump_mcode(tr)
-			t.info = t.info or jutil.traceinfo(tr)
 			t.tracelabel = t.tracelabel or tracelabel(tr, func, pc, otr, oex)
+			t.otr, t.oex = otr, oex
 
 			t.evt[#t.evt +1] = {
 				what, func, pc,
@@ -648,6 +653,9 @@ do
 
 	function loomstart(clear)
 		if clear then
+			for k, v in pairs(traces_data) do
+				prevtraces[k] = v
+			end
 			traces_data, seen_funcs = {}, {}
 			collecting = {[0]=0}
 		end
@@ -662,6 +670,27 @@ do
 		for _, v in ipairs(collecting) do
 			expand_t[v[1]](unpack(v, 2, table.maxn(v)))
 		end
+
+		for tn, tr in pairs(traces_data) do
+			gettrace(tr.otr or tn)
+			gettrace(tr.info.link or tn)
+			if tr.mcode then
+				for tns in tr.mcode:gmatch('Trace #(%d+)') do
+					gettrace(tonumber(tns))
+				end
+			end
+		end
+		for _, tr in pairs(traces_data) do
+			for _, rec in ipairs(tr.rec) do
+				seen_funcs[rec[1]] = true
+			end
+			for _, evt in ipairs(tr.evt) do
+				if type(evt[2]) == 'function' then
+					seen_funcs[evt[2]] = true
+				end
+			end
+		end
+
 		local funcslist = {}
 		for fun in pairs(seen_funcs) do
 			for subf, fi in pairs(func_bc(fun)) do
@@ -768,7 +797,7 @@ local function annotated(funcs, traces)
 			for srcname, osrc in pairs(o) do		-- luacheck: ignore srcname
 				for _, ol in ipairs(osrc) do
 					if ol.func == func and ol.pc == pc and #ol.bc>0 then
-						local k = msg or what
+						local k = what .. (msg and ': '..msg or '')
 						ol.evt[k] = (ol.evt[k] or 0) + 1
 					end
 				end
