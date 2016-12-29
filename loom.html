@@ -58,7 +58,7 @@
 			.white {
 				background-color: white;
 			}
-			{% for i = 1, table.maxn(funcs) do %}{{:'.fn%03d', i}} {
+			{% for i = 1, table.maxn(funcs) do %}.{{funclabel(funcs[i])}} {
 				background-color: hsla({{math.random(360)}}, 100%, 90%, 1);
 			}
 			{% end %}

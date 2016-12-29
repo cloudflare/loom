@@ -17,14 +17,15 @@ local function pushf(t, f, ...)
 	return f
 end
 
-local function allipairs(t)
+local function allipairs(t, start)
+	start = start or 1
 	local maxn = table.maxn(t)
 	return function (t, k)
 		repeat
 			k = k + 1
 		until t[k] ~= nil or k > maxn
 		return k <= maxn and k or nil, t[k]
-	end, t, 0
+	end, t, start-1
 end
 
 local function sortedpairs(t, emptyelem)
@@ -692,10 +693,17 @@ end
 
 
 local function annotated(funcs, traces)
-	local ranges = {}
+	local funcfi = {}
 	for _, f in ipairs(funcs) do
-		local fi = func_bc(f)[f]
-		if fi.source and type(fi.func)=='function' then
+		for subf, fi in pairs(func_bc(f)) do
+			funcfi[subf] = fi
+		end
+		if not funcfi[f] then print ("falta", f) end
+	end
+	local ranges = {}
+	local builtins = {}
+	for _, fi in pairs(funcfi) do
+		if fi.source then
 			local srcranges = defget(ranges, fi.source:gsub('^@', ''), nil)
 			local lineranges = defget(srcranges, fi.linedefined, nil)
 			lineranges[#lineranges+1] = fi
@@ -721,7 +729,7 @@ local function annotated(funcs, traces)
 			of[#of+1] = nl
 			return nl
 		end
-		for startline, lst in allipairs(srcranges) do
+		for startline, lst in allipairs(srcranges, 0) do
 			for _, fi in ipairs(lst) do
 				lastline = lastline or math.max(0, startline-2)
 				for pc, l in sortedpairs(fi.bytecode or {}) do
