@@ -383,7 +383,7 @@ end
 
 -- Dump IR and interleaved snapshots.
 local function dump_ir(tr)
-	local dumpsnap, dumpreg = false, true
+	local dumpsnap, dumpreg = true, true
 	local info = jutil.traceinfo(tr)
 	if not info then return end
 	local nins = info.nins
@@ -726,11 +726,11 @@ end
 
 local function annotated(funcs, traces)
 	local ranges = {}
-	for f, fi in pairs(funcs) do		-- luacheck: ignore f
-		if fi.source then
+	for f, fi in pairs(funcs) do
+		if type(f)=='function' and fi.source then
 			local srcranges = defget(ranges, fi.source:gsub('^@', ''), nil)
 			local lineranges = defget(srcranges, fi.linedefined, nil)
-			lineranges[#lineranges+1] = fi
+			lineranges[f] = fi
 		end
 	end
 
@@ -745,7 +745,7 @@ local function annotated(funcs, traces)
 				src = src[i],
 				func = func,
 				pc = pc,
-				bcl = bcl or '',
+				bc = bcl or '',
 				back = type(i)=='number' and i <= lastline,
 				tr = {},
 				evt = {},
@@ -754,7 +754,7 @@ local function annotated(funcs, traces)
 			return nl
 		end
 		for startline, lst in allipairs(srcranges, 0) do
-			for _, fi in ipairs(lst) do
+			for _, fi in pairs(lst) do
 				lastline = math.max(0, startline-2)
 				for pc, l in sortedpairs(fi.bytecode or {}) do
 					local lnum, bcl = unpack(l)
@@ -785,7 +785,7 @@ local function annotated(funcs, traces)
 				for _, ol in ipairs(osrc) do
 					if ol.func == f and ol.pc == pc and #ol.bc>0 then
 						ol.tr[#ol.tr+1] = {i, j}
-						rec[#rec+1] = {i=ol.i, l=ol.src}
+						rec[#rec+1] = {name=srcname, i=ol.i, l=ol.src}
 						break
 					end
 				end

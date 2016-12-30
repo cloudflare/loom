@@ -22,7 +22,14 @@
 			return _ft_[f]
 		end
 
-		local function annottraces(txt)
+		local function annot_ir(txt)
+			if type(txt) ~= 'string' then return '' end
+			txt = _e(txt):gsub('(SNAP%s+#%d+%s+)(%[%C+%])',
+				'<span title="%2">%1[…]</span>')
+			return txt
+		end
+
+		local function annot_mcode(txt)
 			if type(txt) ~= 'string' then return '' end
 			txt = txt:gsub('%(exit (%d+)/(%d+)%)', function (a, b)
 				a, b = tonumber(a), tonumber(b)
@@ -39,13 +46,13 @@
 		local annotated = loom.annotated(funcs, traces)
 	%}
 	<head>
-		<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.1.1/jquery.min.js"></script>
 		<style media="screen" type="text/css">
 			.code {
 				font-family: monospace;
 				white-space: pre;
 				tab-size: 4;
 			}
+			.bc .src { display: none; }
 			.codespan {
 				width: 100%;
 			}
@@ -68,6 +75,14 @@
 			}
 			{% end %}
 		</style>
+		<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.1.1/jquery.min.js"></script>
+		<script>
+			$(function() {
+				$('th.bc').click(function(e) {
+					$('.bc .src').toggle();
+				});
+			});
+		</script>
 	</head>
 	<body>
 	<table class="code" cellpadding="0" cellspacing="0">
@@ -83,9 +98,9 @@
 				lastline = l.i
 				%}
 			<tr {{= class{bordertop=notsame and l.bc ~= ''} }}>
-				<td {{= class{phantom=l.back} }}>{{ notsame and l.i or '' }}</td>
-				<td {{= class{phantom=l.back} }}>{{ notsame and l.src or '' }}</td>
-				<td {{= class{[funclabel(l.func)] = l.bc ~= ''} }}>{{ l.bc }}</td>
+				<td {{= class{phantom=l.back} }}> {{ notsame and l.i or '' }} </td>
+				<td {{= class{phantom=l.back} }}> {{ notsame and l.src or '' }} </td>
+				<td {{= class{[funclabel(l.func)] = l.bc ~= ''} }}> {{ l.bc }} </td>
 				<td>{% for i, tr in ipairs(l.tr or {}) do
 					local trref = ('tr%03d'):format(tr[1])
 					local lnref = ('tr%03d_%03d'):format(tr[1], tr[2])
@@ -95,38 +110,41 @@
 					>{{tr[1]}}/{{tr[2]}}</span></a> {%
 				end %}</td>
 				<td>{% for msg, n in pairs(l.evt or {}) do
-					%}<span>"{{msg}}" [n={{n}}]</span>{%
+					%} <span>"{{msg}}" [n={{n}}]</span> {%
 				end %}</td>
 			</tr>
 			{% end %}
 		{% end %}
 	</table>
 
-	{% for i, tr in loom.allipairs(traces) do %}
+	{% for i, tr in loom.allipairs(traces) do local prevsrc%}
 		<br/>
 		<a name="#{{:'tr%0dd', i}}"><table class="popup trace {{:'tr%03d', i}}" id="{{:'tr%03d', i}}" cellpadding="4">
 			<tr>
 				<th colspan="3">Trace #{{i}}: {{tr.tracelabel}}</th>
 			</tr>
 			<tr class="white">
-				<th>bytecode</th>
-				<th>IR</th>
-				<th>mcode</th>
+				<th class="bc" >bytecode</th>
+				<th class="ir" >IR</th>
+				<th class="mcode" >mcode</th>
 			</tr>
 			<tr class="white" valign="top">
 				<td class="code bc"><table cellpadding="0" cellspacing="0">
 					{% for j, rec in ipairs(tr.rec) do
 						local f, pc, l, src = unpack(rec)
+						local srcline = src and ('%s:%d %s'):format(src.name, src.i, src.l or '')
 						local lnref = ('tr%03d_%03d'):format(i, j)
 						%}
-					<tr title="{{src and (src.i..': '.. (src.l or ''))}}">
+					<tr>
+						<td class="src">{{srcline ~= prevsrc and srcline or ''}}</td>
 						<td class="{{:'tr%03d', i}}"><a href="#{{lnref}}">{{i}}/{{j}}</a></td>
 						<td class="{{funclabel(f)}}"> {{l}}</td>
 					</tr>
-					{% end %}
+					{% prevsrc = srcline
+					end %}
 				</table></td>
-				<td class="code ir">{{tr.ir}}</td>
-				<td class="code mcode">{{=annottraces(tr.mcode)}}</td>
+				<td class="code ir">{{=annot_ir(tr.ir)}}</td>
+				<td class="code mcode">{{=annot_mcode(tr.mcode)}}</td>
 			</tr>
 		</table></a>
 	{% end %}

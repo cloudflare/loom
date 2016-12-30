@@ -19,6 +19,18 @@ function Sm.motivating_example_1()
 	print(x, z[1])
 end
 
+function Sm.motivating_example_2()
+	local x, z = 0, nil
+	for i=1,100 do
+		if i == 90 then
+			local t = {i}
+			z = t
+		end
+		x = x + i
+	end
+	print(x, z[1])
+end
+
 function Sm.resinking()
 	local z = nil
 	for i=1,200 do
