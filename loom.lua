@@ -260,39 +260,39 @@ local function ctlsub(c)
 end
 
 local function formatk(tr, idx)
-  local k, t, slot = jutil.tracek(tr, idx)
-  local tn = type(k)
-  local s
-  if tn == "number" then
-    if k == 2^52+2^51 then
-      s = "bias"
-    else
-      s = ("%+.14g"):format(k)
-    end
-  elseif tn == "string" then
-    s = (#k > 20 and '"%.20s"~' or '"%s"'):format(k:gsub("%c", ctlsub))
-  elseif tn == "function" then
-    s = fmtfunc(k)
-  elseif tn == "table" then
-    s = ("{%p}"):format(k)
-  elseif tn == "userdata" then
-    if t == 12 then
-      s = ("userdata:%p"):format(k)
-    else
-      s = ("[%p]"):format(k)
-      if s == "[0x00000000]" then s = "NULL" end
-    end
-  elseif t == 21 then -- int64_t
-    s = tostring(k):sub(1, -3)
-    if (s):sub(1, 1) ~= "-" then s = "+"..s end
-  else
-    s = tostring(k) -- For primitives.
-  end
-  s = ("%-4s"):format(s)
-  if slot then
-    s = ("%s @%d"):format(s, slot)
-  end
-  return s
+	local k, t, slot = jutil.tracek(tr, idx)
+	local tn = type(k)
+	local s
+	if tn == "number" then
+		if k == 2^52+2^51 then
+			s = "bias"
+		else
+			s = ("%+.14g"):format(k)
+		end
+	elseif tn == "string" then
+		s = (#k > 20 and '"%.20s"~' or '"%s"'):format(k:gsub("%c", ctlsub))
+	elseif tn == "function" then
+		s = fmtfunc(k)
+	elseif tn == "table" then
+		s = ("{%p}"):format(k)
+	elseif tn == "userdata" then
+		if t == 12 then
+			s = ("userdata:%p"):format(k)
+		else
+			s = ("[%p]"):format(k)
+			if s == "[0x00000000]" then s = "NULL" end
+		end
+	elseif t == 21 then -- int64_t
+		s = tostring(k):sub(1, -3)
+		if (s):sub(1, 1) ~= "-" then s = "+"..s end
+	else
+		s = tostring(k) -- For primitives.
+	end
+	s = ("%-4s"):format(s)
+	if slot then
+		s = ("%s @%d"):format(s, slot)
+	end
+	return s
 end
 
 local function printsnap(tr, snap)
@@ -476,7 +476,7 @@ local function dump_ir(tr)
 		else
 			pushf (o, "....        SNAP   #%-3d [ ", snapno)
 		end
-		printsnap(tr, snap)
+		pushf (o, printsnap(tr, snap))
 	end
 	return table.concat(o)
 end

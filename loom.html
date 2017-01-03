@@ -25,7 +25,7 @@
 		local function annot_ir(txt)
 			if type(txt) ~= 'string' then return '' end
 			txt = _e(txt):gsub('(SNAP%s+#%d+%s+)(%[%C+%])',
-				'<span title="%2">%1[…]</span>')
+				'<span title="%2">%1<span class="opt">%2</span></span>')
 			return txt
 		end
 
@@ -46,13 +46,14 @@
 		local annotated = loom.annotated(funcs, traces)
 	%}
 	<head>
+		<meta charset="utf-8" />
 		<style media="screen" type="text/css">
 			.code {
 				font-family: monospace;
 				white-space: pre;
 				tab-size: 4;
 			}
-			.bc .src { display: none; }
+			.opt { display: none; }
 			.codespan {
 				width: 100%;
 			}
@@ -79,7 +80,10 @@
 		<script>
 			$(function() {
 				$('th.bc').click(function(e) {
-					$('.bc .src').toggle();
+					$('.bc .opt').toggle();
+				});
+				$('th.ir').click(function(e) {
+					$('.ir .opt').toggle();
 				});
 			});
 		</script>
@@ -135,10 +139,10 @@
 						local srcline = src and ('%s:%d %s'):format(src.name, src.i, src.l or '')
 						local lnref = ('tr%03d_%03d'):format(i, j)
 						%}
-					<tr>
-						<td class="src">{{srcline ~= prevsrc and srcline or ''}}</td>
-						<td class="{{:'tr%03d', i}}"><a href="#{{lnref}}">{{i}}/{{j}}</a></td>
-						<td class="{{funclabel(f)}}"> {{l}}</td>
+					<tr class="code">
+						<td class="{{:'tr%03d', i}}"><a href="#{{lnref}}">{{i}}/{{j}}</a> </td>
+						<td class="{{funclabel(f)}}"> {{l}} </td>
+						<td class="src opt">{{srcline ~= prevsrc and srcline or ''}}</td>
 					</tr>
 					{% prevsrc = srcline
 					end %}
