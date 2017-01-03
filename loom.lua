@@ -482,11 +482,18 @@ local function dump_ir(tr)
 end
 
 
+local function get_bytecode(bc)
+	return vmdef.bcnames:sub(bc*6+1, bc*6+6):gsub(' ', '')
+end
+
 -- Format trace error message.
 local function fmterr(err, info)
   if type(err) == "number" then
     if type(info) == "function" then info = fmtfunc(info) end
     err = vmdef.traceerr[err]:format(info)
+	if type(info) == 'number' and err:find('bytecode') then
+		err = ("%s (%s)"):format(err, get_bytecode(info))
+	end
   end
   return err
 end
