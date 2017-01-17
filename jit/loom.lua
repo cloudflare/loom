@@ -842,7 +842,7 @@ do
 		end
 
 		local args = {'_e'}
-		tpl = tpl:gsub('{{@(.-)}}', function (argl)
+		tpl = tpl:gsub('{@(.-)}', function (argl)
 			argl:gsub('([_%a][_%w]*)', function (a) args[#args+1] = a return '' end)
 			return ''
 		end)

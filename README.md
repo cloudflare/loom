@@ -92,6 +92,6 @@ Outputs the result of the Lua expression verbatim, without any character escapin
 
 Outputs the result of `string.format(fmt, args, ...)` without any escaping.
 
-**`{{@ name ... }}`**
+**`{@ name ... }`**
 
 Defines template argument names.  Each `name` must be a valid Lua variable name (that is, a sequence of letters, numbers or underscores not beginning with a number), separated by commas or spaces (or any non-alfanumeric-underscore character).
