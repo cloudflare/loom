@@ -191,3 +191,5 @@ To recreate under loom, try:
 
 And open the resulting `out.html` with a browser to see the same thing with nice colours and links to help following how the traces flow together.
 
+![screenshot](shot.png)
+
