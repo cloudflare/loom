@@ -43,6 +43,26 @@
 			return txt
 		end
 
+		local cmdline = ''
+		do
+			local minarg, maxarg = 1000,-1000
+			for k in pairs(arg) do
+				if type(k) == 'number' then
+					minarg = math.min(k, minarg)
+					maxarg = math.max(k, maxarg)
+				end
+			end
+			local newarg = {}
+			for i = minarg, maxarg do
+				local v = tostring(arg[i])
+				if v:find('[^%w.,/=_-]') then
+					v = ('%q'):format(v)
+				end
+				newarg[i] = v
+			end
+			cmdline = table.concat(newarg, ' ', minarg, maxarg)
+		end
+
 		local annotated = loom.annotated(funcs, traces)
 	%}
 	<head>
@@ -87,8 +107,10 @@
 				});
 			});
 		</script>
+		<title>{{cmdline}}</title>
 	</head>
 	<body>
+	<h2>{{cmdline}}</h2>
 	<table class="code" cellpadding="0" cellspacing="0">
 		{% for filename, filedata in pairs(annotated) do
 			local lastline
