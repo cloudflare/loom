@@ -741,10 +741,25 @@ local function annotated(funcs, traces)
 		end
 	end
 
+	local presources = {}
+	do
+		local cmdlinesrc = ''
+		for k, v in pairs(arg) do
+			if type(k) == 'number' and v == '-e' then
+				cmdlinesrc = cmdlinesrc .. arg[k+1]
+			end
+		end
+		local cmdlines = {}
+		for l in (cmdlinesrc..'\r'):gmatch('(.-)[\r\n]') do
+			cmdlines[#cmdlines+1] = l
+		end
+		presources['=(command line)'] = cmdlines
+	end
+
 	local o = {}
 	for srcname, srcranges in sortedpairs(ranges) do
 		o[srcname] = {}
-		local of, src = o[srcname], srclines(srcname)
+		local of, src = o[srcname], presources[srcname] or srclines(srcname)
 		local lastline = nil
 		local function newline(i, func, pc, bcl)
 			local nl = {
