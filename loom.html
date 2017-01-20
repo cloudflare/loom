@@ -40,13 +40,6 @@
 			return o
 		end
 
-		local function annot_ir(txt)
-			if type(txt) ~= 'string' then return '' end
-			txt = _e(txt):gsub('(SNAP%s+#%d+%s+)(%[%C+%])',
-				'<span title="%2">%1<span class="opt">%2</span></span>')
-			return txt
-		end
-
 		local function is_irref(f)
 			if f:match('^%d+$') then
 				return 'ref_'..f
@@ -62,6 +55,9 @@
 				if l[5] == 'SNAP' then
 					class[#class+1] = 'snap_'..l[6]:sub(2)
 					l.title = l[7]
+					for ref in l[7]:gmatch('%s(%d+)%s') do
+						class[#class+1] = 'ref_'..ref
+					end
 					l[7] = ('<span class="opt">%s</span>'):format(l[7])
 				end
 				l.class = next(class) and table.concat(class, ' ')
