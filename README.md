@@ -54,7 +54,7 @@ There are some functions included in the `loom` package to help formatting a rep
 
 The string `tmpl` is a report template using the template syntax described below.  If it doesn't contain any line break, is interpreted as a pathname to read the template from a text file.
 
-The template is compiled into a Lua function that takes some arguments (named with `{{@ name ...}}` tags) and outputs the result as a string.
+The template is compiled into a Lua function that takes some arguments (named with `{@ name ...}` tags) and outputs the result as a string.
 
 
 **`loom.annotated(funcs, traces)`**
