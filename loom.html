@@ -4,6 +4,7 @@
 	{%
 		local loom = require 'jit.loom'
 		local function class(t)
+			if not t then return '' end
 			o = {}
 			for k, v in pairs(t) do
 				if v then o[#o+1] = k end
@@ -22,11 +23,51 @@
 			return _ft_[f]
 		end
 
+		local function lines(s)
+			local o = {}
+			for l in s:gmatch('[^\r\n]+') do
+				o[#o+1] = l
+			end
+			return o
+		end
+
+		local function cols(s, cwl)
+			local o, start = {}, 1
+			for i, w in ipairs(cwl) do
+				o[i] = s:sub(start, start+w-1):gsub('%s+$', '')
+				start = start+w
+			end
+			return o
+		end
+
 		local function annot_ir(txt)
 			if type(txt) ~= 'string' then return '' end
 			txt = _e(txt):gsub('(SNAP%s+#%d+%s+)(%[%C+%])',
 				'<span title="%2">%1<span class="opt">%2</span></span>')
 			return txt
+		end
+
+		local function is_irref(f)
+			if f:match('^%d+$') then
+				return 'ref_'..f
+			end
+		end
+
+		local function table_ir(txt)
+			local o = lines(txt)
+			local cwl = {5, 6, 3, 4, 7, 6, 1000}
+			for i, l in ipairs(o) do
+				l = cols(l, cwl)
+				local class = {is_irref(l[1])}
+				if l[5] == 'SNAP' then
+					class[#class+1] = 'snap_'..l[6]:sub(2)
+					l.title = l[7]
+					l[7] = ('<span class="opt">%s</span>'):format(l[7])
+				end
+				l.class = next(class) and table.concat(class, ' ')
+				o[i] = l
+			end
+			return o
 		end
 
 		local function annot_mcode(txt)
@@ -86,6 +127,9 @@
 			.white {
 				background-color: white;
 			}
+			.hilight {
+				background-color: lightsteelblue;
+			}
 			{% for f, fi in pairs(funcs) do %}.{{funclabel(f)}} {
 				background-color: hsla({{math.random(360)}}, 100%, 90%, 1);
 			}
@@ -98,12 +142,23 @@
 		</style>
 		<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.1.1/jquery.min.js"></script>
 		<script>
+			var sameref = function (elm, parent) {
+				var refmatch = elm.className.match(/ref_\d+/);
+				return refmatch ? $(elm).closest(parent).find('.'+refmatch[0])
+						: $();
+				return $(elm).closest(parent).find('.'+refclass);
+			}
 			$(function() {
 				$('th.bc').click(function(e) {
 					$('.bc .opt').toggle();
 				});
 				$('th.ir').click(function(e) {
 					$('.ir .opt').toggle();
+				});
+				$('[class^="ref_"]').mouseenter(function(e) {
+					sameref(e.target, '.ir').addClass('hilight');
+				}).mouseleave(function(e){
+					sameref(e.target, '.ir').removeClass('hilight');
 				});
 			});
 		</script>
@@ -169,7 +224,13 @@
 					{% prevsrc = srcline
 					end %}
 				</table></td>
-				<td class="code ir">{{=annot_ir(tr.ir)}}</td>
+				<td class="code ir"><table>
+					{%for _, l in ipairs(table_ir(tr.ir)) do %}
+						<tr class="{{=l.class or ''}}" title="{{=l.title}}">{% for _, f in ipairs(l) do %}
+							<td class="{{=is_irref(f) or ''}}">{{=f}}</td>
+						{% end %}</tr>
+					{% end %}
+				</table></td>
 				<td class="code mcode">{{=annot_mcode(tr.mcode)}}</td>
 			</tr>
 		</table></a>

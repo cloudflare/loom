@@ -399,9 +399,9 @@ local function dump_ir(tr)
 	for ins=1,nins do
 		if ins >= snapref then
 			if dumpreg then
-				pushf (o, "....              SNAP   #%-3d [ ", snapno)
+				pushf (o, "....              SNAP   #%-3d  [ ", snapno)
 			else
-				pushf (o, "....        SNAP   #%-3d [ ", snapno)
+				pushf (o, "....        SNAP   #%-3d  [ ", snapno)
 			end
 			pushf (o, printsnap(tr, snap))
 			snapno = snapno + 1
@@ -472,9 +472,9 @@ local function dump_ir(tr)
 	end
 	if snap then
 		if dumpreg then
-			pushf (o, "....              SNAP   #%-3d [ ", snapno)
+			pushf (o, "....              SNAP   #%-3d  [ ", snapno)
 		else
-			pushf (o, "....        SNAP   #%-3d [ ", snapno)
+			pushf (o, "....        SNAP   #%-3d  [ ", snapno)
 		end
 		pushf (o, printsnap(tr, snap))
 	end
