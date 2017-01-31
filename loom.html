@@ -42,9 +42,17 @@
 		end
 
 		local function is_irref(f)
-			if f:match('^%d+$') then
+			if f:match('^%d%d%d%d$') then
 				return 'ref_'..f
 			end
+		end
+
+		local function all_refs(s)
+			c = {}
+			for ref in s:gmatch('%d+') do
+				c[#c+1] = is_irref(ref)
+			end
+			return table.concat(c, ' ')
 		end
 
 		local function table_ir(txt)
@@ -56,9 +64,6 @@
 				if l[5] == 'SNAP' then
 					class[#class+1] = 'snap_'..l[6]:sub(2)
 					l.title = l[7]
-					for ref in l[7]:gmatch('%s(%d+)%s') do
-						class[#class+1] = 'ref_'..ref
-					end
 					l[7] = ('<span class="opt">%s</span>'):format(l[7])
 				end
 				l.class = next(class) and table.concat(class, ' ')
@@ -227,7 +232,7 @@
 				<td class="code ir"><table>
 					{%for _, l in ipairs(table_ir(tr.ir)) do %}
 						<tr class="{{=l.class or ''}}" title="{{=l.title}}">{% for _, f in ipairs(l) do %}
-							<td class="{{=is_irref(f) or ''}}">{{=f}}</td>
+							<td class="{{=all_refs(f)}}">{{=f}}</td>
 						{% end %}</tr>
 					{% end %}
 				</table></td>
