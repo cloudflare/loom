@@ -631,10 +631,16 @@ do
 			t.tracelabel = t.tracelabel or tracelabel(tr, func, pc, otr, oex)
 			t.otr, t.oex = otr, oex
 
-			t.evt[#t.evt +1] = {
-				what, func, pc,
-				what=='abort' and fmterr(otr, oex) or nil,
-			}
+			do
+				msg = what=='abort' and fmterr(otr, oex) or nil
+				t.evt[#t.evt +1] = {
+					what, func, pc,
+					msg,
+				}
+				if msg then
+					t.rec[#t.rec+1] = {func, pc, ("%s: %q"):format(what, msg)}
+				end
+			end
 
 			local expf = exp_trace_t[what]
 			return expf and expf(tr, func, pc, otr, oex)
