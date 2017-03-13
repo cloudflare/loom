@@ -638,7 +638,7 @@ do
 					msg,
 				}
 				if msg then
-					t.rec[#t.rec+1] = {func, pc, ("%s: %q"):format(what, msg)}
+					t.rec[#t.rec+1] = {func, 0, ("%s: %q"):format(what, msg)}
 				end
 			end
 
