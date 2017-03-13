@@ -1,1 +1,22 @@
- 
+{@ traces, funcs}
+{%
+	local loom = require 'jit.loom'
+%}
+digraph G {
+	{% for i, tr in loom.allipairs(traces) do %}
+		{{: '\n\tT%d;', i }}
+	{% end %}
+
+	{% for i, tr in loom.allipairs(traces) do %}
+		{% if false and tr.info.linktype == 'loop' then %}
+			{{: '\n\tT%d -> T%d;', i, i}}
+		{% end %}
+		{% if tr.parent and tr.p_exit then %}
+			{{: '\n\tT%d -> T%d [label="%s"];', tr.parent, i, tr.p_exit}}
+		{% end %}
+		{% if tonumber(tr.info.link) then %}
+			{{: '\n\tT%d -> T%d;', i, tr.info.link}}
+		{% end %}
+	{% end %}
+
+}
