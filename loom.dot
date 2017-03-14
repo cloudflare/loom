@@ -1,10 +1,12 @@
 {@ traces, funcs}
 {%
 	local loom = require 'jit.loom'
+	local funcinfo = require ('jit.util').funcinfo
 %}
 digraph G {
 	{% for i, tr in loom.allipairs(traces) do %}
-		{{: '\n\tT%d;', i }}
+		{% local entryinfo = funcinfo(tr.rec[1][1], tr.rec[1][2]) %}
+		{{: '\n\tT%d [label=%q];', i, entryinfo.loc }}
 	{% end %}
 
 	{% for i, tr in loom.allipairs(traces) do %}
