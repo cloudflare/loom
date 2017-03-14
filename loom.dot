@@ -2,11 +2,23 @@
 {%
 	local loom = require 'jit.loom'
 	local funcinfo = require ('jit.util').funcinfo
+	local nodeshape = {
+		none = 'shape=none',
+		root = 'shape=ellipse',
+		loop = 'penwidth=3.0',
+		['tail-recursion'] = 'diamond',
+		['up-recursion'] = 'house',
+		['down-recursion'] = 'invhouse',
+		interpreter = 'egg',
+		['return'] = 'parallelogram',
+		stitch = 'Mdiamond',
+	}
 %}
 digraph G {
 	{% for i, tr in loom.allipairs(traces) do %}
 		{% local entryinfo = funcinfo(tr.rec[1][1], tr.rec[1][2]) %}
-		{{: '\n\tT%d [label=%q];', i, entryinfo.loc }}
+		{% local shape = nodeshape[tr.info.linktype] or 'circle' %}
+		{{: '\n\tT%d [%s, label=%q];', i, shape, entryinfo.loc }}
 	{% end %}
 
 	{% for i, tr in loom.allipairs(traces) do %}
@@ -14,10 +26,10 @@ digraph G {
 			{{: '\n\tT%d -> T%d;', i, i}}
 		{% end %}
 		{% if tr.parent and tr.p_exit then %}
-			{{: '\n\tT%d -> T%d [label="%s"];', tr.parent, i, tr.p_exit}}
+			{{: '\n\tT%d -> T%d [taillabel="%s"];', tr.parent, i, tr.p_exit}}
 		{% end %}
 		{% if tonumber(tr.info.link) then %}
-			{{: '\n\tT%d -> T%d;', i, tr.info.link}}
+			{{: '\n\tT%d -> T%d [dir=both, arrowtail=odot];', i, tr.info.link}}
 		{% end %}
 	{% end %}
 
