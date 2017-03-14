@@ -6,30 +6,30 @@
 		none = 'shape=none',
 		root = 'shape=ellipse',
 		loop = 'penwidth=3.0',
-		['tail-recursion'] = 'diamond',
-		['up-recursion'] = 'house',
-		['down-recursion'] = 'invhouse',
-		interpreter = 'egg',
-		['return'] = 'parallelogram',
-		stitch = 'Mdiamond',
+		['tail-recursion'] = 'shape=diamond',
+		['up-recursion'] = 'shape=house',
+		['down-recursion'] = 'ishape=nvhouse',
+		interpreter = 'shape=egg',
+		['return'] = 'shape=parallelogram',
+		stitch = 'shape=Mdiamond',
 	}
 %}
 digraph G {
-	{% for i, tr in loom.allipairs(traces) do %}
-		{% local entryinfo = funcinfo(tr.rec[1][1], tr.rec[1][2]) %}
-		{% local shape = nodeshape[tr.info.linktype] or 'circle' %}
-		{{: '\n\tT%d [%s, label=%q];', i, shape, entryinfo.loc }}
+	{% for i, tr in loom.allipairs(traces) do
+		local entryinfo = funcinfo(tr.rec[1][1], tr.rec[1][2])
+		local shape = nodeshape[tr.info.linktype] or 'circle' %}
+		T{{ i }} [{{ shape }}, label="#{{ i }}\n{{ entryinfo.loc }}", href="#tr{{ i }}"]
 	{% end %}
 
 	{% for i, tr in loom.allipairs(traces) do %}
 		{% if false and tr.info.linktype == 'loop' then %}
-			{{: '\n\tT%d -> T%d;', i, i}}
+			T{{ i }} -> T{{ i }};
 		{% end %}
-		{% if tr.parent and tr.p_exit then %}
-			{{: '\n\tT%d -> T%d [taillabel="%s"];', tr.parent, i, tr.p_exit}}
+		{% if tr.parent and tr.p_exit and tr.p_exit>0 then %}
+			T{{ tr.parent }} -> T{{ i }} [taillabel=">{{ tr.p_exit }}"];
 		{% end %}
 		{% if tonumber(tr.info.link) then %}
-			{{: '\n\tT%d -> T%d [dir=both, arrowtail=odot];', i, tr.info.link}}
+			T{{ i }} -> T{{ tr.info.link }} [dir=both, arrowtail=odot];
 		{% end %}
 	{% end %}
 
