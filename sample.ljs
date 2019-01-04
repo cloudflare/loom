@@ -1,0 +1,78 @@
+var Sm = {};
+
+function Sm.lulu() {
+	for( i = 1, 1000 ) {
+		for( j = 1, 1000 ) {
+		}
+	}
+}
+
+function Sm.motivating_example_1() {
+	var x, z = 0, null;
+	for( i=1,100 ) {
+		var t = {i};
+		if( i == 90 ) {
+			z = t;
+		}
+		x = x + t[1];
+	}
+	print(x, z[1]);
+}
+
+function Sm.motivating_example_2() {
+	var x, z = 0, null;
+	for( i=1,100 ) {
+		if( i == 90 ) {
+			var t = {i};
+			z = t;
+		}
+		x +=   i;
+	}
+	print(x, z[1]);
+}
+
+function Sm.resinking() {
+	var z = null;
+	for( i=1,200 ) {
+		var t = {i};
+		if( i > 100 ) {
+			if( i == 190 ) { z = t; }
+		}
+	}
+	print(z[1]);
+}
+
+function Sm.pointadds() {
+	var point;
+	point = {
+		new = function(this, x, y) {
+			return setmetatable({x=x, y=y}, this);
+		},
+		__add = function(a, b) {
+			return point->new(a.x + b.x, a.y + b.y);
+		},
+	};
+	point.__index = point;
+	var a, b = point->new(1.5, 2.5), point->new(3.25, 4.75);
+	for( i=1,100000000 ) {
+		a = (a + b) + b;
+	}
+	print(a.x, a.y);
+}
+
+function Sm.tdup(x) {
+	return { foo=1, bar=2, 1,2,x,4 };
+}
+
+function Sm.miltdup(x) {
+	for( i=1,1000 ) { Sm.tdup(i); }
+}
+
+function Sm.call_some() {
+	print ("one");
+	Sm.motivating_example_1();
+	print ("end");
+}
+
+
+return Sm;

@@ -1,0 +1,923 @@
+
+var bit = require ('bit');
+var jutil = require ('jit.util');
+var vmdef = require ('jit.vmdef');
+var bc = require ('jit.bc');
+var disass = require('jit.dis_'..jit.arch);
+
+var band, shr = bit.band, bit.rshift;
+var inf = tonumber('inf');
+
+
+var function pushf(t, f, ...) {
+	if( select('#', ...) > 0 ) {
+		f = f->format(...);
+	}
+	t[#t+1] = f;
+	return f;
+}
+
+var function allipairs(t, start) {
+	start = start || 1;
+	var maxn = table.maxn(t);
+	return function (t, k) {			// luacheck: ignore t
+		do {
+			++k    ;
+		} while(!( t[k] != null || k > maxn) );
+		return k <= maxn && k || null, t[k];
+	}, t, start-1;
+}
+
+var function sortedpairs(t, emptyelem) {
+	if( emptyelem != null && next(t) == null ) {
+		var done = false;
+		return function () {
+			if( ! done ) {
+				done = true;
+				return emptyelem;
+			}
+		};
+	}
+
+	var t2, map = {}, {};
+	for( k in pairs(t) ) {
+		var sk = type(k) == 'number' && ('%20.6f')->format(k) || tostring(k);
+		t2[#t2+1] = sk;
+		map[sk] = k;
+	}
+	table.sort(t2);
+	var i = 1;
+	return function () {
+		var k = map[t2[i]];
+		++i  ;
+		return k, t[k];
+	};
+}
+
+// copied from jit.dump
+
+var function fmtfunc(func, pc) {
+	var fi = jutil.funcinfo(func, pc);
+	if( fi.loc ) {
+		return fi.loc;
+	} else if( fi.ffid ) {
+		return vmdef.ffnames[fi.ffid];
+	} else if( fi.addr ) {
+		return ("C:%x")->format(fi.addr);
+	} else {
+		return "(?)";
+	}
+}
+
+//---------
+
+var function bcline(func, pc, prefix) {
+	var l;
+	if( pc >= 0 ) {
+		l = bc.line(func, pc, prefix);
+		if( ! l ) { return l; }
+	} else {
+		l = "0000 "..prefix.." FUNCC      \n";
+	}
+
+	l = l->gsub('%s+$', '');
+	return l;
+}
+
+
+var function func_bc(func, o) {
+	o = o || {};
+	o[func] = jutil.funcinfo(func);
+	if( o[func].children ) {
+		for( n = -1, -inf, -1 ) {
+			var k = jutil.funck(func, n);
+			if( ! k ) { break; }
+			if( type(k) == 'proto' ) { func_bc(k, o); }
+		}
+	}
+	o[func].func = func;
+	o[func].bytecode = {};
+	if( ! o[func].addr ) {
+		var target = bc.targets(func);
+		for( pc = 1, inf ) {
+			var s = bcline (func, pc, target[pc] && "=>");
+			if( ! s ) { break; }
+			var fi_sub = jutil.funcinfo(func, pc);
+			o[func].bytecode[pc] = {fi_sub.currentline, s};
+		}
+	}
+	return o;
+}
+
+//------------------------------------
+// tracing
+
+// copied from jit/dump.lua
+
+var symtabmt = { __index = false };
+var symtab = {};
+var nexitsym = 0;
+
+// Fill nested symbol table with per-trace exit stub addresses.
+var function fillsymtab_tr(tr, nexit) {
+	var t = {};
+	symtabmt.__index = t;
+	if( jit.arch == "mips" || jit.arch == "mipsel" ) {
+		t[jutil.traceexitstub(tr, 0)] = "exit";
+		return;
+	}
+	for( i=0,nexit-1 ) {
+		var addr = jutil.traceexitstub(tr, i);
+		if( addr < 0 ) { addr = addr + 2**32; }
+		t[addr] = tostring(i);
+	}
+	var addr = jutil.traceexitstub(tr, nexit);
+	if( addr ) { t[addr] = "stack_check"; }
+}
+
+// Fill symbol table with trace exit stub addresses.
+var function fillsymtab(tr, nexit) {
+	var t = symtab;
+	if( nexitsym == 0 ) {
+		var ircall = vmdef.ircall;
+		for( i=0,#ircall ) {
+			var addr = jutil.ircalladdr(i);
+			if( addr && addr != 0 ) {
+				if( addr < 0 ) { addr = addr + 2**32; }
+				t[addr] = ircall[i];
+			}
+		}
+	}
+	if( nexitsym == 1000000 ) { // Per-trace exit stubs.
+		fillsymtab_tr(tr, nexit);
+	} else if( nexit > nexitsym ) { // Shared exit stubs.
+		for( i=nexitsym,nexit-1 ) {
+			var addr = jutil.traceexitstub(i);
+			if( addr == null ) { // Fall back to per-trace exit stubs.
+				fillsymtab_tr(tr, nexit);
+				setmetatable(symtab, symtabmt);
+				nexit = 1000000;
+				break;
+			}
+			if( addr < 0 ) { addr = addr + 2**32; }
+			t[addr] = tostring(i);
+		}
+		nexitsym = nexit;
+	}
+	return t;
+}
+
+// Disassemble machine code.
+var function dump_mcode(tr) {
+	var o = {};
+	var info = jutil.traceinfo(tr);
+	if( ! info ) { return; }
+	var mcode, addr, loop = jutil.tracemc(tr);
+	if( ! mcode ) { return; }
+	if( addr < 0 ) { addr = addr + 2**32; }
+	var ctx = disass.create(mcode, addr, function (s) { pushf(o, s); });
+	ctx.hexdump = 0;
+	ctx.symtab = fillsymtab(tr, info.nexit);
+	if( loop != 0 ) {
+		symtab[addr+loop] = "LOOP";
+		ctx->disass(0, loop);
+		pushf (o, "->LOOP:\n");
+		ctx->disass(loop, #mcode-loop);
+		symtab[addr+loop] = null;
+	} else {
+		ctx->disass(0, #mcode);
+	}
+	return table.concat(o);
+}
+
+
+
+
+var irtype = {
+  [0] = "nil",
+  "fal",
+  "tru",
+  "lud",
+  "str",
+  "p32",
+  "thr",
+  "pro",
+  "fun",
+  "p64",
+  "cdt",
+  "tab",
+  "udt",
+  "flt",
+  "num",
+  "i8 ",
+  "u8 ",
+  "i16",
+  "u16",
+  "int",
+  "u32",
+  "i64",
+  "u64",
+  "sfp",
+};
+
+// Lookup tables to convert some literals into names.
+var litname = {
+	["SLOAD "] = setmetatable({}, { __index = function(t, mode) {
+		var s = "";
+		if( band(mode, 1) != 0 ) { s = s.."P"; }
+		if( band(mode, 2) != 0 ) { s = s.."F"; }
+		if( band(mode, 4) != 0 ) { s = s.."T"; }
+		if( band(mode, 8) != 0 ) { s = s.."C"; }
+		if( band(mode, 16) != 0 ) { s = s.."R"; }
+		if( band(mode, 32) != 0 ) { s = s.."I"; }
+		t[mode] = s;
+		return s;
+	}}),
+	["XLOAD "] = { [0] = "", "R", "V", "RV", "U", "RU", "VU", "RVU", },
+	["CONV  "] = setmetatable({}, { __index = function(t, mode) {
+		var s = irtype[band(mode, 31)];
+		s = irtype[band(shr(mode, 5), 31)].."."..s;
+		if( band(mode, 0x800) != 0 ) { s = s.." sext"; }
+		var c = shr(mode, 14);
+		if( c == 2 ) { s = s.." index"; } else if( c == 3 ) { s = s.." check"; }
+		t[mode] = s;
+		return s;
+	}}),
+	["FLOAD "] = vmdef.irfield,
+	["FREF  "] = vmdef.irfield,
+	["FPMATH"] = vmdef.irfpm,
+	["BUFHDR"] = { [0] = "RESET", "APPEND" },
+	["TOSTR "] = { [0] = "INT", "NUM", "CHAR" },
+};
+
+
+var function ctlsub(c) {
+	if( c == "\n" ) { return "\\n";
+	} else if( c == "\r" ) { return "\\r";
+	} else if( c == "\t" ) { return "\\t";
+	} else { return ("\\%03d")->format(c->byte());
+	}
+}
+
+var function formatk(tr, idx) {
+	var k, t, slot = jutil.tracek(tr, idx);
+	var tn = type(k);
+	var s;
+	if( tn == "number" ) {
+		if( k == 2**52+2**51 ) {
+			s = "bias";
+		} else {
+			s = ("%+.14g")->format(k);
+		}
+	} else if( tn == "string" ) {
+		s = (#k > 20 && '"%.20s"~' || '"%s"')->format(k->gsub("%c", ctlsub));
+	} else if( tn == "function" ) {
+		s = fmtfunc(k);
+	} else if( tn == "table" ) {
+		s = ("{%p}")->format(k);
+	} else if( tn == "userdata" ) {
+		if( t == 12 ) {
+			s = ("userdata:%p")->format(k);
+		} else {
+			s = ("[%p]")->format(k);
+			if( s == "[0x00000000]" ) { s = "NULL"; }
+		}
+	} else if( t == 21 ) { // int64_t
+		s = tostring(k)->sub(1, -3);
+		if( (s)->sub(1, 1) != "-" ) { s = "+"..s; }
+	} else {
+		s = tostring(k); // For primitives.
+	}
+	s = ("%-4s")->format(s);
+	if( slot ) {
+		s = ("%s @%d")->format(s, slot);
+	}
+	return s;
+}
+
+var function printsnap(tr, snap) {
+	var o = {};
+	var n = 2;
+	for( s=0,snap[1]-1 ) {
+		var sn = snap[n];
+		if( shr(sn, 24) == s ) {
+			++n    ;
+			var ref = band(sn, 0xffff) - 0x8000; // REF_BIAS
+			if( ref < 0 ) {
+				pushf(o, formatk(tr, ref));
+			} else if( band(sn, 0x80000) != 0 ) { // SNAP_SOFTFPNUM
+				pushf(o, "%04d/%04d", ref, ref+1);
+			} else {
+				pushf(o, "%04d", ref);
+			}
+			pushf(o, band(sn, 0x10000) == 0 && " " || "|"); // SNAP_FRAME
+		} else {
+			pushf(o, "---- ");
+		}
+	}
+	pushf(o, "]\n");
+	return table.concat(o);
+}
+
+// Dump snapshots (not interleaved with IR).
+var function dump_snap(tr) {
+	var o = {"---- TRACE "..tr.." snapshots\n"};
+	for( i=0,1000000000 ) {
+		var snap = jutil.tracesnap(tr, i);
+		if( ! snap ) { break; }
+		pushf(o, "#%-3d %04d [ ", i, snap[0]);
+		pushf(o, printsnap(tr, snap));
+	}
+	return table.concat(o);
+}
+
+// Return a register name or stack slot for a rid/sp location.
+var function ridsp_name(ridsp, ins) {
+	var rid, slot = band(ridsp, 0xff), shr(ridsp, 8);
+	if( rid == 253 || rid == 254 ) {
+		return (slot == 0 || slot == 255) && " {sink" || (" {%04d")->format(ins-slot);
+	}
+	if( ridsp > 255 ) { return ("[%x]")->format(slot*4); }
+	if( rid < 128 ) { return disass.regname(rid); }
+	return "";
+}
+
+// Dump CALL* function ref and return optional ctype.
+var function dumpcallfunc(o, tr, ins) {
+	var ctype;
+	if( ins > 0 ) {
+		var m, ot, op1, op2 = jutil.traceir(tr, ins);		// luacheck: ignore m
+		if( band(ot, 31) == 0 ) { // nil type means CARG(func, ctype).
+			ins = op1;
+			ctype = formatk(tr, op2);
+		}
+	}
+	if( ins < 0 ) {
+		pushf(o, "[0x%x](", tonumber((jutil.tracek(tr, ins))));
+	} else {
+		pushf(o, "%04d (", ins);
+	}
+	return ctype;
+}
+
+// Recursively gather CALL* args and dump them.
+var function dumpcallargs(o, tr, ins) {
+	if( ins < 0 ) {
+		pushf(o, formatk(tr, ins));
+	} else {
+		var m, ot, op1, op2 = jutil.traceir(tr, ins);		// luacheck: ignore m
+		var oidx = 6*shr(ot, 8);
+		var op = vmdef.irnames->sub(oidx+1, oidx+6);
+		if( op == "CARG  " ) {
+			dumpcallargs(o, tr, op1);
+			if( op2 < 0 ) {
+				pushf(o, " "..formatk(tr, op2));
+			} else {
+				pushf(o, " %04d", op2);
+			}
+		} else {
+			pushf(o, "%04d", ins);
+		}
+	}
+}
+
+// Dump IR and interleaved snapshots.
+var function dump_ir(tr) {
+	var dumpsnap, dumpreg = true, true;
+	var info = jutil.traceinfo(tr);
+	if( ! info ) { return; }
+	var nins = info.nins;
+	var o = {};
+	var irnames = vmdef.irnames;
+	var snapref = 65536;
+	var snap, snapno;
+	if( dumpsnap ) {
+		snap = jutil.tracesnap(tr, 0);
+		snapref = snap[0];
+		snapno = 0;
+	}
+	for( ins=1,nins ) {
+		if( ins >= snapref ) {
+			if( dumpreg ) {
+				pushf (o, "....              SNAP   #%-3d  [ ", snapno);
+			} else {
+				pushf (o, "....        SNAP   #%-3d  [ ", snapno);
+			}
+			pushf (o, printsnap(tr, snap));
+			++snapno    ;
+			snap = jutil.tracesnap(tr, snapno);
+			snapref = snap && snap[0] || 65536;
+		}
+		var m, ot, op1, op2, ridsp = jutil.traceir(tr, ins);
+		var oidx, t = 6*shr(ot, 8), band(ot, 31);
+		var op = irnames->sub(oidx+1, oidx+6);
+		if( op == "LOOP  " ) {
+			if( dumpreg ) {
+				pushf (o, "%04d ------------ LOOP ------------\n", ins);
+			} else {
+				pushf (o, "%04d ------ LOOP ------------\n", ins);
+			}
+		} else if( op != "NOP   " && op != "CARG  " &&
+			(dumpreg || op != "RENAME")
+		) {
+			var rid = band(ridsp, 255);
+			if( dumpreg ) {
+				pushf (o, "%04d %-6s", ins, ridsp_name(ridsp, ins));
+			} else {
+				pushf (o, "%04d ", ins);
+			}
+			pushf (o, "%s%s %s %s ",
+					(rid == 254 || rid == 253) && "}" ||
+					(band(ot, 128) == 0 && " " || ">"),
+					band(ot, 64) == 0 && " " || "+",
+					irtype[t], op);
+			var m1, m2 = band(m, 3), band(m, 3*4);
+			if( op->sub(1, 4) == "CALL" ) {
+				var ctype;
+				if( m2 == 1*4 ) { // op2 == IRMlit
+					pushf (o, "%-10s  (", vmdef.ircall[op2]);
+				} else {
+					ctype = dumpcallfunc(o, tr, op2);
+				}
+				if( op1 != -1 ) { dumpcallargs(o, tr, op1); }
+				pushf(o, ")");
+				if( ctype ) { pushf(o, " ctype "..ctype); }
+			} else if( op == "CNEW  " && op2 == -1 ) {
+				pushf(o, formatk(tr, op1));
+			} else if( m1 != 3 ) { // op1 != IRMnone
+				if( op1 < 0 ) {
+					pushf(o, formatk(tr, op1));
+				} else {
+					pushf(o, m1 == 0 && "%04d" || "#%-3d", op1);
+				}
+				if( m2 != 3*4 ) { // op2 != IRMnone
+					if( m2 == 1*4 ) { // op2 == IRMlit
+						var litn = litname[op];
+						if( litn && litn[op2] ) {
+							pushf(o, "  "..litn[op2]);
+						} else if( op == "UREFO " || op == "UREFC " ) {
+							pushf (o, "  #%-3d", shr(op2, 8));
+						} else {
+							pushf (o, "  #%-3d", op2);
+						}
+					} else if( op2 < 0 ) {
+						pushf (o, "  "..formatk(tr, op2));
+					} else {
+						pushf (o, "  %04d", op2);
+					}
+				}
+			}
+			pushf (o, "\n");
+		}
+	}
+	if( snap ) {
+		if( dumpreg ) {
+			pushf (o, "....              SNAP   #%-3d  [ ", snapno);
+		} else {
+			pushf (o, "....        SNAP   #%-3d  [ ", snapno);
+		}
+		pushf (o, printsnap(tr, snap));
+	}
+	return table.concat(o);
+}
+
+
+var function get_bytecode(bc) {
+	return vmdef.bcnames->sub(bc*6+1, bc*6+6)->gsub(' ', '');
+}
+
+// Format trace error message.
+var function fmterr(err, info) {
+	if( type(err) == "number" ) {
+		if( type(info) == "function" ) { info = fmtfunc(info); }
+		err = vmdef.traceerr[err]->format(info);
+		if( type(info) == 'number' && err->find('bytecode') ) {
+			err = ("%s (%s)")->format(err, get_bytecode(info));
+		}
+	}
+	return err;
+}
+
+
+var function tracelabel(tr, func, pc, otr, oex) {
+	var startex = otr && "("..otr.."/"..oex..") " || "";
+	var info = jutil.traceinfo(tr);
+	if( ! info ) { return '-- no trace info --'; }
+
+	var link, ltype = info.link, info.linktype;
+	if( ltype == "interpreter" ) {
+		return ("%s -- fallback to interpreter\n")
+			->format(startex);
+	} else if( ltype == "stitch" ) {
+		return ("%s %s [%s]\n")
+			->format(startex, ltype, fmtfunc(func, pc));
+	} else if( link == tr || link == 0 ) {
+		return ("%s %s\n")
+			->format(startex, ltype);
+	} else if( ltype == "root" ) {
+		return ("%s -> %d\n")
+			->format(startex, link);
+	} else {
+		return ("%s -> %d %s\n")
+			->format(startex, link, ltype);
+	}
+}
+
+//--
+
+var loomstart, loomstop;
+{
+	var collecting = {[0]=0};
+	var function append(v) {
+		var c = collecting;
+		c[0] = c[0] + 1;
+		c[c[0]] = v;
+		return c[0];
+	}
+
+	var function collect_trace(what, tr, func, pc, otr, oex) {
+		append({'trace', what, tr, func, pc, otr, oex, ''});
+	}
+
+	var function collect_record(tr, func, pc, depth) {
+		append({'record', tr, func, pc, depth, ''});
+	}
+
+	var function collect_texit(tr, ex, ngpr, nfpr, ...) {
+		append({'texit', tr, ex, ngpr, nfpr, ...});
+	}
+
+	var function do_attachs() {
+		jit.attach(collect_trace, 'trace');
+		jit.attach(collect_record, 'record');
+		jit.attach(collect_texit, 'texit');
+	}
+
+	var function do_detachs() {
+		jit.attach(collect_texit);
+		jit.attach(collect_record);
+		jit.attach(collect_trace);
+	}
+
+	var traces_data, seen_funcs = {}, {};
+	var prevtraces = {};
+	var prevexp_t = {
+		trace = function (what, tr, func, pc, otr, oex) {		// luacheck: ignore func pc
+			if( what == 'start' ) {
+				var mcode, addr, loop = jutil.tracemc(tr);	// luacheck: ignore mcode loop
+				if( addr != null ) {
+					if( otr && oex ) {
+						symtab[addr] = ("Trace #%d (exit %d/%d)")->format(tr, otr, oex);
+					} else {
+						symtab[addr] = ("Trace #%d")->format(tr);
+					}
+				}
+			}
+		},
+		record = function() { },
+		texit = function () { },
+	};
+	var function gettrace(tn) {
+		var tr = traces_data[tn];
+		if( tr ) { return tr; }
+
+		tr = prevtraces[tn] || {
+			info = jutil.traceinfo(tn) || {},
+			ir = dump_ir(tn),
+			snap = dump_snap(tn),
+			evt = {},
+			rec = {},
+			n = {
+				trace = 0,
+				start = 0,
+				stop = 0,
+				abort = 0,
+				flush = 0,
+				record = 0,
+				texit = 0,
+			},
+			exits = {},
+		};
+		tr.mcode = dump_mcode(tn);
+		traces_data[tn] = tr;
+		return tr;
+	}
+
+	var exp_trace_t = {
+		start = function (tr, func, pc, otr, oex) {	// luacheck: ignore func pc
+			var t = gettrace(tr);
+			t.parent = t.parent || otr;
+			t.p_exit = t.p_exit || oex;
+		},
+
+		stop = function (tr, func, pc, otr, oex) {	// luacheck: ignore tr func pc otr oex
+		},
+
+		abort = function (tr, func, pc, otr, oex) {	// luacheck: ignore func pc
+			var t = gettrace(tr);
+			t.err = t.err || fmterr(otr, oex);
+		},
+
+		flush = function (tr, func, pc, otr, oex) {	// luacheck: ignore tr func pc otr oex
+			symtab, nexitsym = {}, 0;
+		},
+	};
+	var expand_t = {
+		trace = function (what, tr, func, pc, otr, oex) {
+			seen_funcs[func] = true;
+			var t = gettrace(tr);
+			t.n.trace = t.n.trace + 1;
+			t.n[what] = (t.n[what] || 0) + 1;
+			t.tracelabel = t.tracelabel || tracelabel(tr, func, pc, otr, oex);
+			t.otr, t.oex = otr, oex;
+
+			{
+				msg = what=='abort' && fmterr(otr, oex) || null;
+				t.evt[#t.evt +1] = {
+					what, func, pc,
+					msg,
+				};
+				if( msg ) {
+					t.rec[#t.rec+1] = {func, pc, ("%s: %q")->format(what, msg)};
+				}
+			}
+
+			var expf = exp_trace_t[what];
+			return expf && expf(tr, func, pc, otr, oex);
+		},
+
+		record = function (tr, func, pc, depth) {
+			var t = gettrace(tr);
+			t.n.record = t.n.record + 1;
+			seen_funcs[func] = true;
+			t.rec[#t.rec+1] = {func, pc, bcline(func, pc, (' .')->rep(depth))};
+			if( pc >= 0 && band(jutil.funcbc(func, pc), 0xff) < 16 ) {
+				t.rec[#t.rec+1] = {func, pc+1, bcline(func, pc+1, (' .')->rep(depth))};
+			}
+		},
+
+		texit = function (tr, ex, ngpr, nfpr, ...) {
+			var t = gettrace(tr);
+			t.n.texit = t.n.texit + 1;
+			t.exits[ex] = (t.exits[ex] || 0) + 1;
+			t.evt[#t.evt+1] = {'exit', ex, ngpr, nfpr, ...};
+		},
+	};
+
+	function loomstart(clear) {
+		if( clear ) {
+			for( k, v in pairs(traces_data) ) {
+				prevtraces[k] = v;
+			}
+			traces_data, seen_funcs = {}, {};
+			collecting = {[0]=0};
+		}
+		do_attachs();
+	}
+
+	function loomstop(f, ...) {
+		do_detachs();
+		for( _, v in ipairs(collecting) ) {
+			prevexp_t[v[1]](unpack(v, 2, table.maxn(v)));
+		}
+		for( _, v in ipairs(collecting) ) {
+			expand_t[v[1]](unpack(v, 2, table.maxn(v)));
+		}
+
+		for( tn, tr in pairs(traces_data) ) {
+			gettrace(tr.otr || tn);
+			gettrace(tr.info.link || tn);
+			if( tr.mcode ) {
+				for( tns in tr.mcode->gmatch('Trace #(%d+)') ) {
+					gettrace(tonumber(tns));
+				}
+			}
+		}
+		for( _, tr in pairs(traces_data) ) {
+			for( _, rec in ipairs(tr.rec) ) {
+				seen_funcs[rec[1]] = true;
+			}
+			for( _, evt in ipairs(tr.evt) ) {
+				if( type(evt[2]) == 'function' ) {
+					seen_funcs[evt[2]] = true;
+				}
+			}
+		}
+
+		var funcslist = {};
+		for( fun in pairs(seen_funcs) ) {
+			for( subf, fi in pairs(func_bc(fun)) ) {
+				funcslist[subf] = fi;
+			}
+		}
+
+		if( f ) {
+			return f(traces_data, funcslist, ...);
+		}
+		return traces_data, funcslist;
+	}
+}
+//------------------------------------
+var function srclines(fn) {
+	var t, f = {}, io.open(fn);
+	if( f ) {
+		for( l in f->lines() ) {
+			t[#t+1] = l;
+		}
+		f->close();
+	}
+	return t;
+}
+
+var function defget(t, k, d) {
+	var v = t[k] || d;
+	if( v == null ) { v = {}; }
+	if( t[k] == null ) { t[k] = v; }
+	return v;
+}
+
+
+var function annotated(funcs, traces) {
+	var ranges = {};
+	for( f, fi in pairs(funcs) ) {
+		if( type(f)=='function' && fi.source ) {
+			var srcranges = defget(ranges, fi.source->gsub('^@', ''), null);
+			var lineranges = defget(srcranges, fi.linedefined, null);
+			lineranges[f] = fi;
+		}
+	}
+
+	var presources = {};
+	{
+		var cmdlinesrc = '';
+		for( k, v in pairs(arg) ) {
+			if( type(k) == 'number' && v == '-e' ) {
+				cmdlinesrc = cmdlinesrc .. arg[k+1];
+			}
+		}
+		var cmdlines = {};
+		for( l in (cmdlinesrc..'\r')->gmatch('(.-)[\r\n]') ) {
+			cmdlines[#cmdlines+1] = l;
+		}
+		presources['=(command line)'] = cmdlines;
+	}
+
+	var o = {};
+	for( srcname, srcranges in sortedpairs(ranges) ) {
+		o[srcname] = {};
+		var of, src = o[srcname], presources[srcname] || srclines(srcname);
+		var lastline = null;
+		var function newline(i, func, pc, bcl) {
+			var nl = {
+				i = i,
+				src = src[i],
+				func = func,
+				pc = pc,
+				bc = bcl || '',
+				back = type(i)=='number' && i <= lastline,
+				tr = {},
+				evt = {},
+			};
+			of[#of+1] = nl;
+			return nl;
+		}
+		for( startline, lst in allipairs(srcranges, 0) ) {
+			for( _, fi in pairs(lst) ) {
+				lastline = math.max(0, startline-2);
+				for( pc, l in sortedpairs(fi.bytecode || {}) ) {
+					var lnum, bcl = unpack(l);
+					if( lnum > lastline + 5 ) {
+						for( i = lastline+1, lastline+3 ) {
+							newline (i);
+						}
+						newline ('...');
+						for( i = lnum-2, lnum-1 ) {
+							newline(i, fi.func);
+						}
+					} else {
+						for( i = lastline+1, lnum-1 ) {
+							newline(i, fi.func);
+						}
+					}
+					newline(lnum, fi.func, pc, bcl);
+					lastline = math.max(lastline, lnum);
+				}
+			}
+		}
+	}
+
+	for( i, tr in allipairs(traces) ) {
+		for( j, rec in ipairs(tr.rec) ) {
+			var f, pc, bcl = unpack (rec);			// luacheck: ignore bcl
+			for( srcname, osrc in pairs(o) ) {		// luacheck: ignore srcname
+				for( _, ol in ipairs(osrc) ) {
+					if( ol.func == f && ol.pc == pc && #ol.bc>0 ) {
+						ol.tr[#ol.tr+1] = {i, j};
+						rec[#rec+1] = {name=srcname, i=ol.i, l=ol.src};
+						break;
+					}
+				}
+			}
+		}
+		for( _, evt in ipairs(tr.evt) ) {
+			var what, func, pc, msg = unpack(evt);
+			for( srcname, osrc in pairs(o) ) {		// luacheck: ignore srcname
+				for( _, ol in ipairs(osrc) ) {
+					if( ol.func == func && ol.pc == pc && #ol.bc>0 ) {
+						var k = what .. (msg && ': '..msg || '');
+						ol.evt[k] = (ol.evt[k] || 0) + 1;
+					}
+				}
+			}
+		}
+	}
+	return o;
+}
+
+//------------------------------------
+
+/*
+	template compiling function, loosely derived from:
+		https://github.com/dannote/lua-template/blob/master/template.lua
+	by Danila Poyarkov
+--*/
+var template;
+{
+	var _esc = {
+		['&'] = '&amp;',
+		['<'] = '&lt;',
+		['>'] = '&gt;',
+		['"'] = '&quot;',
+	};
+	var function escape(s) {
+	return tostring(s || '')->gsub('[><&"]', _esc);
+	}
+
+	function template (tpl) {
+		var tplname = 'tmpl';
+		if( ! tpl->find('\n', 1, true) ) {
+			tplname = tpl;
+			var f = assert(io.open(tpl));
+			tpl = assert(f->read('*a'));
+			f->close();
+		}
+
+		var args = {'_e'};
+		tpl = tpl->gsub('{@(.-)}', function (argl) {
+			argl->gsub('([_%a][_%w]*)', function (a) { args[#args+1] = a; return ''; });
+			return '';
+		});
+
+		var src = (
+			'var %s = ... ' ..
+			'var _o = {} ' ..
+			'var function _p(x){ _o[#_o+1] = tostring(x || "") } ' ..
+			'var function _fp(f, ...){ _p(f->format(...)) } '..
+			'var function _ep(x){ _p(_e(x)) } ' ..
+			'_p([=[%s]=]) ' ..
+			'return table.concat(_o)')
+		->format(
+			table.concat(args, ', '),
+			tpl
+				->gsub('[][]=[][]', ']=]) _p("%1") _p([=[')
+				->gsub('{{=', ']=]) _p(')
+				->gsub('{{:', ']=]) _fp(')
+				->gsub('{{', ']=]) _ep(')
+				->gsub('}}', ') _p([=[')
+				->gsub('{%%', ']=]) ')
+				->gsub('%%}', ' _p([=[')
+		);
+		//print("===\n" .. src .. "\n===");
+		var f = assert(loadstring(src, tplname));
+		return function (...) {
+			return f(escape, ...);
+		};
+	}
+}
+
+
+//-----------------------------------
+var defer;
+
+return {
+	on = loomstart,
+	off = loomstop,
+
+	start = function (opt, out) {
+		var tmpl = template(opt || 'loom-ljs.html');
+		defer = newproxy(true);
+		getmetatable(defer).__gc = function() { xpcall(function () {
+			var o = loomstop(tmpl);
+			out = type(out)=='string' && assert(io.open(out, 'w'))
+					|| out || io.stdout;
+			out->write(o);
+		}, function(err) { print(debug.traceback(err)); }); };
+
+		loomstart();
+	},
+
+	template = template,
+	annotated = annotated,
+	allipairs = allipairs,
+	sortedpairs = sortedpairs,
+};
