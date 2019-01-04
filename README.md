@@ -1,3 +1,5 @@
+## This is a port of LOOM to https://github.com/mingodad/ljsjit
+
 LOOM
 ====
 
