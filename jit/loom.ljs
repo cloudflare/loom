@@ -632,7 +632,7 @@ var loomstart, loomstop;
 			t.otr, t.oex = otr, oex;
 
 			{
-				msg = what=='abort' && fmterr(otr, oex) || null;
+				var msg = what=='abort' && fmterr(otr, oex) || null;
 				t.evt[#t.evt +1] = {
 					what, func, pc,
 					msg,
