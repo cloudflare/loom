@@ -10,7 +10,7 @@ Just put it in a `jit/` directory within `package.path` or `$LUA_PATH`, typicall
 
 **`-jloom[=<tmpl>[,<out>]]`**
 
-`<tmpl>` is a template file (default `'loom.html'`) and `<out>` is an output file name (default `io.stdout`).
+`<tmpl>` is a template file and `<out>` is an output file name (default `io.stdout`).
 
 Lua API
 ===
@@ -44,7 +44,7 @@ That is, both return values (the `traces` and `funcs` arrays) are passed to the 
 
 **`loom.start(tmpl, out)`**
 
-Implements the `-jloom[=tmpl[,out]]` option. The `tmpl` argument is passed to `loom.template()` to create a reporting function.  If omitted, defaults to `'loom.html'`.  The `out` parameter is either a writeable open file or a file name where the report is written into (after formatting by the template), defaults to `io.stdout`.  When the Lua VM is terminated normally, `loom.off()` is called with the reporting function created by the given template.,
+Implements the `-jloom[=tmpl[,out]]` option. The `tmpl` argument is passed to `loom.template()` to create a reporting function.  If omitted, the default template will be used. The `out` parameter is either a writeable open file or a file name where the report is written into (after formatting by the template), defaults to `io.stdout`.  When the Lua VM is terminated normally, `loom.off()` is called with the reporting function created by the given template.,
 
 ### Utility Functions
 
@@ -100,7 +100,7 @@ Defines template argument names.  Each `name` must be a valid Lua variable name 
 Included Template
 ===
 
-The included `loom.html` template renders the trace report as an HTML document.  It's divided in two sections: a Sourcecode -> Bytecode -> Traces one, and a list of traces, with the Bytecode -> IR -> mcode progression for each one.
+The included template renders the trace report as an HTML document.  It's divided in two sections: a Sourcecode -> Bytecode -> Traces one, and a list of traces, with the Bytecode -> IR -> mcode progression for each one.
 
 1.- Source list
 ---
