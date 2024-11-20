@@ -632,7 +632,7 @@ do
 			t.otr, t.oex = otr, oex
 
 			do
-				msg = what=='abort' and fmterr(otr, oex) or nil
+				local msg = what=='abort' and fmterr(otr, oex) or nil
 				t.evt[#t.evt +1] = {
 					what, func, pc,
 					msg,
